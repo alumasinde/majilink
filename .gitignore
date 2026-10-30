@@ -1,0 +1,15 @@
+.env
+.devdb/
+storage/logs/*
+!storage/logs/.gitkeep
+storage/cache/*
+!storage/cache/.gitkeep
+storage/uploads/vendor-docs/*
+!storage/uploads/vendor-docs/.gitkeep
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.iml
+.idea/
+.DS_Store

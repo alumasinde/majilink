@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MajiLink</string>
+    <string name="tagline">Pin it. Order it. Delivered.</string>
+    <string name="customer_mode">Customer</string>
+    <string name="vendor_mode">Vendor</string>
+</resources>
