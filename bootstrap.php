@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-define('BASE_PATH', __DIR__);
+defined('BASE_PATH') || define('BASE_PATH', __DIR__);
 
-require BASE_PATH . '/src/Support/Env.php';
-require BASE_PATH . '/src/Support/Config.php';
+require_once BASE_PATH . '/src/Support/Env.php';
+require_once BASE_PATH . '/src/Support/Config.php';
 
 MajiLink\Support\Env::load(BASE_PATH . '/.env');
 

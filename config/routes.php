@@ -4,12 +4,14 @@ declare(strict_types=1);
 use MajiLink\Controllers\Api\AdminApiController;
 use MajiLink\Controllers\Api\AuthController;
 use MajiLink\Controllers\Api\CallbackController;
+use MajiLink\Controllers\Api\ConfigController;
 use MajiLink\Controllers\Api\CustomerController;
 use MajiLink\Controllers\Api\VendorController;
 use MajiLink\Http\Router;
 
 return static function (Router $router): void {
     $auth = new AuthController();
+    $config = new ConfigController();
     $customer = new CustomerController();
     $vendor = new VendorController();
     $admin = new AdminApiController();
@@ -17,6 +19,8 @@ return static function (Router $router): void {
 
     // --- Public / auth -----------------------------------------------------
     $router->get('/api/v1/health', static fn () => \MajiLink\Http\Response::ok(['status' => 'ok', 'time' => gmdate('c')]));
+    // Always reachable, even under maintenance, so a gated client can read why it is gated.
+    $router->get('/api/v1/config', [$config, 'show']);
     $router->post('/api/v1/auth/otp/request', [$auth, 'requestOtp']);
     $router->post('/api/v1/auth/otp/verify', [$auth, 'verifyOtp']);
     $router->get('/api/v1/auth/channels', [$auth, 'channels']);

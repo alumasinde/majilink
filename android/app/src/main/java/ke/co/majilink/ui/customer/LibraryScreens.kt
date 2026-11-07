@@ -50,6 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
 import ke.co.majilink.data.SessionStore
 import ke.co.majilink.ui.components.ActionButton
 import ke.co.majilink.ui.components.EmptyState
@@ -311,19 +318,39 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
     var lng by remember { mutableStateOf<Double?>(null) }
     var locationError by remember { mutableStateOf<String?>(null) }
 
+    // Nairobi centre until the customer taps the map or a GPS fix lands.
+    val camera = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(LatLng(-1.2921, 36.8219), 13f)
+    }
+
+    fun applyFix(fixLat: Double, fixLng: Double) {
+        lat = fixLat
+        lng = fixLng
+        locationError = null
+        scope.launch {
+            camera.animate(CameraUpdateFactory.newLatLngZoom(LatLng(fixLat, fixLng), 16f))
+        }
+    }
+
     fun capture() {
         val client = LocationServices.getFusedLocationProviderClient(context)
         client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-            .addOnSuccessListener { location ->
-                if (location != null) {
-                    lat = location.latitude
-                    lng = location.longitude
-                    locationError = null
+            .addOnSuccessListener { fix ->
+                if (fix != null) {
+                    applyFix(fix.latitude, fix.longitude)
                 } else {
-                    locationError = "No location fix yet. Move to an open area and retry."
+                    // getCurrentLocation often returns null indoors or on a cold start.
+                    client.lastLocation
+                        .addOnSuccessListener { last ->
+                            if (last != null) applyFix(last.latitude, last.longitude)
+                            else locationError = "No GPS fix yet. Tap the map to drop the pin instead."
+                        }
+                        .addOnFailureListener {
+                            locationError = "No GPS fix yet. Tap the map to drop the pin instead."
+                        }
                 }
             }
-            .addOnFailureListener { locationError = "Could not read the GPS position." }
+            .addOnFailureListener { locationError = "Could not read the GPS position. Tap the map instead." }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -384,18 +411,43 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
     }
 
     if (addOpen) {
+        val pinLat = lat
+        val pinLng = lng
         AlertDialog(
             onDismissRequest = { addOpen = false },
             title = { Text("Pin your home") },
             text = {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
                     LabeledField("Alias", alias, { alias = it }, placeholder = "Albert's House")
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Tap the map to place your pin, or pull your GPS position.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(8.dp))
-                    LabeledField("Landmark note (optional)", note, { note = it })
+                    GoogleMap(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        cameraPositionState = camera,
+                        onMapClick = { point ->
+                            lat = point.latitude
+                            lng = point.longitude
+                            locationError = null
+                        }
+                    ) {
+                        if (pinLat != null && pinLng != null) {
+                            Marker(
+                                state = rememberMarkerState(position = LatLng(pinLat, pinLng)),
+                                title = alias.ifBlank { "Home pin" }
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
-                    if (lat != null && lng != null) {
+                    if (pinLat != null && pinLng != null) {
                         Text(
-                            "Pin captured: ${"%.5f".format(lat)}, ${"%.5f".format(lng)}",
+                            "Pin captured: ${"%.5f".format(pinLat)}, ${"%.5f".format(pinLng)}",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -407,15 +459,26 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
                     OutlineAction("Use my current location", onClick = {
                         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                     })
+                    Spacer(Modifier.height(8.dp))
+                    LabeledField("Landmark note (optional)", note, { note = it })
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (alias.isNotBlank() && lat != null && lng != null) {
-                        viewModel.addLocation(alias, lat!!, lng!!, note)
-                        addOpen = false
-                        alias = ""
-                        note = ""
+                    when {
+                        alias.isBlank() ->
+                            locationError = "Give this pin a name, for example \"Home\"."
+                        lat == null || lng == null ->
+                            locationError = "Tap the map to place your pin first."
+                        else -> {
+                            viewModel.addLocation(alias, lat!!, lng!!, note)
+                            addOpen = false
+                            alias = ""
+                            note = ""
+                            lat = null
+                            lng = null
+                            locationError = null
+                        }
                     }
                 }) { Text("Save pin") }
             },
@@ -430,6 +493,7 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
 fun AccountScreen(
     viewModel: CustomerViewModel,
     onChangePin: (String) -> Unit,
+    onOpenLocations: () -> Unit,
     onSwitchMode: () -> Unit,
     onLoggedOut: () -> Unit
 ) {
@@ -500,6 +564,18 @@ fun AccountScreen(
                 TextButton(onClick = { devicesOpen = true }) {
                     Text("Active devices (${viewModel.devices.size})")
                 }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            SectionCard {
+                Text("Delivery pins", fontWeight = FontWeight.Bold)
+                Text(
+                    "Places you can order to. Add one on the map or from your GPS position.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlineAction("Manage pins", onClick = onOpenLocations)
             }
 
             Spacer(Modifier.height(12.dp))

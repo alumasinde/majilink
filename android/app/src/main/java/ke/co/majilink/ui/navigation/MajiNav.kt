@@ -156,7 +156,8 @@ fun MajiNav(
                 CustomerHomeScreen(
                     viewModel = customerViewModel,
                     onOpenVendor = { vendorId -> navController.navigate("order/$vendorId") },
-                    onTrackOrder = { orderId -> navController.navigate("tracking/$orderId") }
+                    onTrackOrder = { orderId -> navController.navigate("tracking/$orderId") },
+                    onOpenLocations = { navController.navigate("locations") }
                 )
             }
             composable(
@@ -203,6 +204,7 @@ fun MajiNav(
                 AccountScreen(
                     viewModel = customerViewModel,
                     onChangePin = { pin -> authViewModel.setPin(pin) },
+                    onOpenLocations = { navController.navigate("locations") },
                     onSwitchMode = {
                         SessionStore.mode = "vendor"
                         onRoleChanged(MajiRole.Vendor)

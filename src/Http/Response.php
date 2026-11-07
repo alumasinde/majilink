@@ -14,7 +14,7 @@ final class Response
             header('Vary: Origin');
         }
         header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-        header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept, X-App-Version-Code, X-App-Version-Name, X-Device-Uid');
         header('Access-Control-Max-Age: 600');
     }
 

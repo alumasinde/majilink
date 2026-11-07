@@ -29,6 +29,7 @@ final class RecurringService
             [$customerId]
         );
         foreach ($rows as &$row) {
+            $row['is_active'] = (bool) $row['is_active'];
             $row['estimated_total'] = number_format(
                 (float) $row['price_per_20l'] * (int) $row['quantity'],
                 2,
@@ -133,6 +134,8 @@ final class RecurringService
         if ($row === null) {
             throw HttpException::notFound('Schedule not found.');
         }
+        // TINYINT arrives as a number; the Android client types is_active as boolean.
+        $row['is_active'] = (bool) $row['is_active'];
         return $row;
     }
 

@@ -12,7 +12,7 @@ config/          app.php, database.php, routes.php
 database/        migrations/, seeders/, migrate.php
 storage/         logs, uploads (vendor documents, outside the web root), cache
 android/         Kotlin + Jetpack Compose app (customer and vendor modes)
-tests/           api_smoke.php — 66 end-to-end checks
+tests/           api_smoke.php — 76 end-to-end checks
 cron.php         order expiry, recurring orders, heartbeat cleanup
 ```
 
@@ -21,7 +21,7 @@ cron.php         order expiry, recurring orders, heartbeat cleanup
 | Component | State |
 |---|---|
 | MySQL schema (36 tables, no ENUMs, lookup tables + FKs) | Built and migrated into a real MariaDB instance |
-| API v1 (auth, OTP, devices, pins, vendors, orders, payments, wallet, payouts, recurring, ratings, admin, M-Pesa callback) | Built; 66/66 smoke checks pass against the running server |
+| API v1 (auth, OTP, devices, pins, vendors, orders, payments, wallet, payouts, recurring, ratings, admin, config, M-Pesa callback) | Built; 76/76 smoke checks pass against the running server |
 | Admin portal (14 pages + actions) | Built; every page returns 200 with a staff session, actions persist and are audited |
 | Landing page (hero, steps, why, vendor CTA, FAQ, contact) | Built; served and contact form writes to `storage/logs/contact.log` |
 | Android app (Compose, Retrofit, Room, Maps, biometrics, FCM service) | Source complete; see build notes below |
@@ -94,6 +94,33 @@ POST /admin/broadcast                  POST /callbacks/mpesa
 
 Responses are `{"data": …}` or `{"error":{"code","message","fields"}}`.
 
+### Runtime config and the app gate
+
+`GET /api/v1/config` is public and needs no token. It is what lets one APK serve every
+environment: the version floor, maintenance switch, feature flags and public limits all come
+from `app_settings` rather than from a compile-time constant. Rows land in Admin → Settings
+automatically (that page renders every `app_settings` key) and every edit is audited.
+
+| Key | Effect |
+|---|---|
+| `min_supported_version_code` | Android `versionCode` below this is refused by the API with **426 `app_update_required`** |
+| `min_recommended_version_code` | Below this the app shows the update prompt; `force_update` decides whether it can be dismissed |
+| `latest_app_version_name`, `update_message`, `update_url` | Copy and destination for the update screen |
+| `maintenance_mode`, `maintenance_message` | All `/api/v1` traffic except `config` and `health` returns **503 `maintenance_mode`** with this message |
+| `api_base_url` | Advertised base URL. The app adopts it only when it stays on the same host it already talked to |
+| `allow_endpoint_override` | Opens the in-app Server screen on release builds (debug builds always have it) |
+| `feature_flags` | Comma-separated enabled names, served as a `{"name":true}` map |
+| `currency`, `min_quantity`, `max_quantity`, `default_radius_km`, `max_radius_km`, `order_expiry_minutes` | Values the app prints or enforces before it has a quote |
+
+`RuntimeGate` runs before authentication on every `/api/v1` route, so an unusable build can be
+locked out without shipping an APK. A request with **no** `X-App-Version-Code` header is treated
+as a legacy client and never gated — that keeps old APKs, the admin portal and the landing page
+working. New clients send `X-App-Version-Code`, `X-App-Version-Name` and `X-Device-Uid`, which is
+also how you tell broken builds apart in `storage/logs/api-errors.log`.
+
+`database/migrations/002_app_config.sql` inserts those rows. It is additive: no renamed or dropped
+columns, so existing databases upgrade in place with `php database/migrate.php`.
+
 ### Business rules implemented in code
 
 * Vendor visibility: approved + online + heartbeat within timeout + inside the customer radius
@@ -112,19 +139,66 @@ Responses are `{"data": …}` or `{"error":{"code","message","fields"}}`.
 * Verification channels: a channel cannot be enabled until a test send succeeds, and the last
   enabled channel cannot be disabled. Provider config is encrypted with libsodium.
 
-## Verification
+## Tests
 
-```bash
-php tests/api_smoke.php
-```
+Three layers, each cheap enough to run on every change.
 
-Covers registration with email OTP, password/PIN login, refresh rotation and reuse rejection,
-saved pins, nearby vendors with ETA, order creation and pricing limits, pre-accept privacy,
-accept → on the way → delivered, wallet credits, ratings, M-Pesa STK + idempotent callback,
-payout limits, vendor application + admin approval + mode unlock, admin reports, override reason
-enforcement, broadcast, trivial PIN rejection and 401/403 boundaries.
+| Layer | Command | What it proves |
+|---|---|---|
+| PHPUnit (unit + services) | `composer test` | Pricing maths, order state machine, vendor matching, wallet/payout ledger, validation, tokens |
+| Kotlin JVM unit tests | `cd android && ./gradlew testDebugUnitTest` | The JSON contract between the app and the API, and error/envelope mapping |
+| End-to-end API smoke | `composer test:api` (server must be running) | The real HTTP surface against a real database: auth, orders, money, admin |
+
+Narrower runs: `composer test:unit`, `composer test:services`,
+`./vendor/bin/phpunit --filter PricingTest`.
+
+### The test database is separate and disposable
+
+`tests/php/bootstrap.php` repoints `DB_NAME` at **`majilink_test`** before anything else runs, and
+refuses to start if `TEST_DB_NAME` resolves to the database in `.env` — so a test run can never
+migrate or wipe your dev data. It creates the database, applies `database/migrations` with the
+same `Migrator` `database/migrate.php` uses, seeds the lookup tables, then clears the transactional
+tables before each test. Point it elsewhere with `TEST_DB_NAME=majilink_ci composer test`.
+
+Reads and writes are the only side effects: no outbound HTTP (`ROUTING_URL` is blanked, so ETAs
+use the straight-line estimate) and no push (FCM is unconfigured).
+
+### What is covered
+
+* **Pricing** — subtotal, base + per-km delivery fee, commission on the subtotal only, cent
+  rounding, zero-fee configuration, quantity bounds read from settings.
+* **Order lifecycle** — price snapshot at order time, the legal transition map, double-accept and
+  post-delivery rejection, automatic expiry, customer/vendor/admin cancellation rules, the
+  pre-acceptance privacy boundary, and cross-customer / cross-vendor access.
+* **Vendor matching** — approved + online + fresh heartbeat, customer radius clamped to the
+  maximum, the vendor's own delivery radius, opening hours including windows that cross midnight,
+  distance ordering and ETA.
+* **Wallet and payouts** — cash earnings less commission, running ledger balance, duplicate-credit
+  guard, payouts capped at the available balance, and per-vendor isolation.
+* **App contract** — snake_case JSON parsed with the production Gson, unknown fields ignored
+  (additive backend columns), error envelopes mapped to field errors, network failures reported as
+  such, and the `app_update_required` code surviving the mapping.
+
+The end-to-end smoke script additionally covers registration with email OTP, password/PIN login,
+refresh rotation and reuse rejection, saved pins, M-Pesa STK + idempotent callback, vendor
+application + admin approval + mode unlock, admin reports, broadcast and 401/403 boundaries.
+
+Not automated yet: Compose UI tests (login → order → track) and the admin portal's HTML. Those are
+still manual, as is anything that needs a map, GPS or a real phone.
 
 PHP lint: `find src public config database tests -name "*.php" -exec php -l {} \;`
+
+## Deploying behind Apache (shared hosting)
+
+`public/` is the only directory that should be web-exposed; `src`, `config`, `database`, `storage`,
+`bootstrap.php` and `cron.php` sit above it and travel with it (`BASE_PATH` is anchored to
+`bootstrap.php`). `public/.htaccess` rewrites everything that is not a real file to `index.php`,
+which is what `public/router.php` does for `php -S` — without it the `/api/v1/...` URLs 404 in
+production, and the admin portal, landing page and assets keep being served directly because the
+rule skips existing files. Set `APP_URL` to the live HTTPS origin, `api_base_url` in Admin →
+Settings to `https://your-host/api/v1/`, `OTP_DEV_EXPOSE=0`, `MPESA_SIMULATE=0`, point
+`MPESA_CALLBACK_URL` at `https://your-host/api/v1/callbacks/mpesa`, and give `storage/logs`,
+`storage/cache` and `storage/uploads` write permission.
 
 ## Scheduled jobs
 
@@ -145,13 +219,101 @@ cd android
 * Kotlin 2.0.21, Compose BOM 2024.10.01, AGP 8.7.3, minSdk 26, target/compileSdk 35.
 * Retrofit + OkHttp with a device-bound refresh flow, Room cache for vendors/orders/pins,
   Google Maps Compose, FCM messaging service, BiometricPrompt + EncryptedSharedPreferences.
-* API base defaults to `http://10.0.2.2:8099/api/v1/` (emulator to host). Override with
-  `-Pmajilink.apiBase=https://api.example.com/api/v1/`.
-* Maps need a key: add `majilink.mapsKey=…` to `android/gradle.properties` or pass `-Pmajilink.mapsKey=…`.
-  Without a key the rest of the app works and the map tiles stay blank.
+* The API base is resolved at **runtime**, not baked into every call. Order is: an address saved on
+  the in-app **Server** screen, then a base URL adopted from `/api/v1/config` (same host only),
+  then the build default `http://10.0.2.2:8099/api/v1/` (emulator to host). Change the compile-time
+  default with `-Pmajilink.apiBase=https://api.example.com/api/v1/`.
+* The Server screen is reachable on any debug build, and on a release build only when the server
+  sets `allow_endpoint_override`. Saving drops the session, because those tokens belong to the
+  server that issued them. A failed config fetch never blocks the app; a cached config does.
+* `AppGate` renders the server's decision above the whole nav graph: maintenance screen, or the
+  update screen (dismissible unless the server forces it). `MainActivity` hosts it.
+* Maps need a key: add `majilink.mapsKey=…` to `android/local.properties` (git-ignored, preferred)
+  or `android/gradle.properties`, or pass `-Pmajilink.mapsKey=…`. Without a key the rest of the app
+  works and the map area stays blank cream with a Google logo and zoom buttons — that means missing
+  or unauthorised key, not a code bug. In Google Cloud enable **Maps SDK for Android** (billing on),
+  then restrict the key to package `ke.co.majilink` *and* `ke.co.majilink.debug` plus your signing
+  SHA-1 (`./gradlew signingReport`), or the debug build will not draw tiles.
+* Taps on a blank map still work, so a pin can be placed before the key is configured, but nobody
+  can aim without tiles — set the key before demoing pin picking.
 * Push needs a Firebase project: drop `google-services.json` into `android/app/` and apply the
   Google services plugin. Without it the app runs; notifications are still stored server-side and
   readable in-app.
+
+### Point the app at your laptop (LAN, no emulator)
+
+The default build target is `http://10.0.2.2:8099/api/v1/`, which only works inside the emulator.
+To use a real phone on the same Wi-Fi, three things have to line up: the server must listen on the
+LAN, Windows must allow the port, and the APK must point at your laptop's IP.
+
+**1. Find your laptop's IP** (use the `192.168.x.x` / `10.x.x.x` one, not `127.0.0.1` or the
+virtual adapter addresses):
+
+```bash
+ipconfig | grep -i "IPv4"
+```
+
+**2. Serve on all interfaces** (`127.0.0.1` is unreachable from the phone):
+
+```bash
+php -S 0.0.0.0:8099 -t public public/router.php
+```
+
+Confirm from the laptop first — if this fails, nothing else will work:
+
+```bash
+curl http://192.168.100.11:8099/api/v1/health
+```
+
+**3. Open the port once** (Command Prompt as Administrator; the rule is for the private/home
+network, so it does not expose the laptop on public Wi-Fi):
+
+```bat
+netsh advfirewall firewall add rule name="MajiLink API 8099" dir=in action=allow protocol=TCP localport=8099 profile=private
+```
+
+Then load `http://192.168.100.11:8099/api/v1/health` in the phone's browser. A timeout there is
+almost always the firewall or the phone being on a different network/SSID (guest networks and
+"client isolation" block device-to-device traffic).
+
+**4. Build the APK against that IP:**
+
+```bash
+cd android
+./gradlew installDebug -Pmajilink.apiBase=http://192.168.100.11:8099/api/v1/
+```
+
+In **PowerShell** the whole flag has to be quoted, or the parser splits it at the dot inside the
+property name and Gradle reports `project '.apiBase=http' not found`:
+
+```powershell
+./gradlew installDebug "-Pmajilink.apiBase=http://192.168.100.11:8099/api/v1/"
+```
+
+No need to rebuild when the IP changes: on a debug build open **Server** (Account → Server) and
+save the new address; it accepts a bare `192.168.100.11:8099` and adds `http://` and `/api/v1/`.
+The session is dropped on save because the tokens belong to the old server.
+
+**5. Tell the backend its own public address.** Admin → Settings → `api_base_url`, or:
+
+```bash
+mysql majilink_dev -e "UPDATE app_settings SET setting_value='http://192.168.100.11:8099/api/v1/' WHERE setting_key='api_base_url'"
+```
+
+`/api/v1/config` then advertises that URL, and the app adopts it after a fetch (same host only) so
+one install can follow the laptop around the network. For production use the HTTPS origin here.
+
+**Over USB instead of Wi-Fi** — no firewall rule, no IP juggling:
+
+```bash
+adb reverse tcp:8099 tcp:8099
+./gradlew installDebug -Pmajilink.apiBase=http://127.0.0.1:8099/api/v1/
+```
+
+Two cautions: debug builds allow cleartext HTTP (the manifest sets
+`usesCleartextTraffic="true"`); a release build must talk HTTPS, so do not ship the LAN setup.
+And if the phone shows "No connection", check `storage/logs/server-lan.log` — a request that never
+arrives is the firewall, a request that arrives with a 500 is the backend.
 
 ### Mode theming
 

@@ -38,6 +38,27 @@ final class SettingsService
         return $value === null ? $default : (float) $value;
     }
 
+    public function bool(string $key, bool $default = false): bool
+    {
+        $value = $this->all()[$key]['setting_value'] ?? null;
+        if ($value === null) {
+            return $default;
+        }
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * Comma-separated list of enabled feature names rendered as a flag map, so a
+     * client can read flags["live_tracking"] instead of parsing a string.
+     *
+     * @return array<string,bool>
+     */
+    public function flags(string $key): array
+    {
+        $names = array_values(array_filter(array_map('trim', explode(',', $this->get($key)))));
+        return array_fill_keys($names, true);
+    }
+
     /**
      * @param array<string,string> $values
      */

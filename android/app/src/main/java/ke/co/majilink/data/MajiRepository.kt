@@ -18,9 +18,12 @@ import ke.co.majilink.data.api.VendorApplicationRequest
  * server's message without a try/catch at each call site.
  */
 class MajiRepository(
-    private val api: MajiApi = ApiClient.api,
     private val dao: MajiDao? = null
 ) {
+
+    // Resolved per call: changing the server rebuilds the Retrofit instance held by ApiClient.
+    private val api: MajiApi
+        get() = ApiClient.api
 
     // --- Auth ---------------------------------------------------------------
 

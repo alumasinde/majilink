@@ -12,13 +12,17 @@ $pass = 0;
 $fail = 0;
 $failures = [];
 
-function call(string $method, string $path, ?array $body = null, ?string $token = null): array
+function call(string $method, string $path, ?array $body = null, ?string $token = null, ?string $versionCode = null): array
 {
     global $base;
     $ch = curl_init($base . $path);
     $headers = ['Accept: application/json'];
     if ($token !== null) {
         $headers[] = 'Authorization: Bearer ' . $token;
+    }
+    if ($versionCode !== null) {
+        $headers[] = 'X-App-Version-Code: ' . $versionCode;
+        $headers[] = 'X-App-Version-Name: smoke';
     }
     if ($body !== null) {
         $headers[] = 'Content-Type: application/json';
@@ -327,6 +331,33 @@ check('Bad destination rejected', $badPhone['status'] === 422, $badPhone['raw'])
 
 $unauth = call('GET', '/orders');
 check('Missing token rejected', $unauth['status'] === 401, $unauth['raw']);
+
+echo "\n== 10. Runtime config and app gate ==\n";
+$config = call('GET', '/config');
+check('Config is public', $config['status'] === 200, $config['raw']);
+$app = $config['json']['data']['app'] ?? [];
+check('Config carries the version floor', isset($app['min_supported_version_code']), $config['raw']);
+check('Config carries the update prompt', isset($app['update_message'], $app['update_url'], $app['force_update']));
+check('Config carries the maintenance switch', isset($config['json']['data']['maintenance']['enabled']));
+check(
+    'Config advertises an API base URL',
+    str_ends_with((string) ($config['json']['data']['endpoint']['api_base_url'] ?? ''), '/api/v1/'),
+    $config['raw']
+);
+check(
+    'Config carries the public ordering limits',
+    isset($config['json']['data']['limits']['min_quantity'], $config['json']['data']['limits']['max_quantity']),
+    $config['raw']
+);
+check('Empty feature flags encode as an object', str_contains($config['raw'], '"flags":{}'), $config['raw']);
+
+$gatedConfig = call('GET', '/config', null, null, '0');
+check('Config stays reachable for an ancient APK', $gatedConfig['status'] === 200, $gatedConfig['raw']);
+
+$versioned = call('GET', '/orders', null, $customerToken, '999999999');
+check('Versioned client above the floor passes', $versioned['status'] === 200, $versioned['raw']);
+$legacy = call('GET', '/orders', null, $customerToken);
+check('Headerless legacy client is not gated', $legacy['status'] === 200, $legacy['raw']);
 
 echo "\n----------------------------------------\n";
 echo "PASS {$pass}  FAIL {$fail}\n";

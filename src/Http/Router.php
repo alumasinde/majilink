@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace MajiLink\Http;
 
 use MajiLink\Middleware\Authenticator;
+use MajiLink\Middleware\RuntimeGate;
 
 final class Router
 {
@@ -57,6 +58,8 @@ final class Router
             }
             $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
             $options = $route['options'];
+
+            RuntimeGate::check($request);
 
             if (!empty($options['auth'])) {
                 Authenticator::authenticate($request);

@@ -127,16 +127,3 @@ final class Db
         return '`' . str_replace('`', '', $name) . '`';
     }
 }
-
-final class Clock
-{
-    public static function now(): string
-    {
-        return gmdate('Y-m-d H:i:s');
-    }
-
-    public static function at(int $timestamp): string
-    {
-        return gmdate('Y-m-d H:i:s', $timestamp);
-    }
-}

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -22,8 +24,14 @@ android {
         val apiBase = (project.findProperty("majilink.apiBase") as String?) ?: "http://10.0.2.2:8099/api/v1/"
         buildConfigField("String", "API_BASE", "\"$apiBase\"")
 
-        // Provide MAPS_API_KEY in local.properties or as a Gradle property.
-        val mapsKey = (project.findProperty("majilink.mapsKey") as String?) ?: ""
+        // Provide MAPS_API_KEY in local.properties (git-ignored) or as a Gradle property.
+        // Without a key the map draws no tiles: the screen looks blank, not broken.
+        val localProps = Properties().apply {
+            val file = rootProject.file("local.properties")
+            if (file.exists()) file.inputStream().use { load(it) }
+        }
+        val mapsKey = (project.findProperty("majilink.mapsKey") as String?)
+            ?: localProps.getProperty("majilink.mapsKey").orEmpty()
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
 

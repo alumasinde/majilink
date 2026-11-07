@@ -2,7 +2,11 @@ package ke.co.majilink.data.api
 
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
+import com.google.gson.TypeAdapter
 import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import com.google.gson.stream.JsonWriter
 import ke.co.majilink.BuildConfig
 import ke.co.majilink.data.SessionStore
 import okhttp3.Authenticator
@@ -21,29 +25,59 @@ import kotlinx.coroutines.runBlocking
 
 object ApiClient {
 
+    /**
+     * MySQL TINYINT(1) columns can reach the app as 0/1, and Gson's built-in adapter
+     * throws on a number instead of coercing it — which takes down the whole screen
+     * that happened to contain the field. Accept numbers and "0"/"1" strings too so
+     * a backend slip degrades to a wrong-looking toggle, never a crash.
+     */
+    private val lenientBoolean = object : TypeAdapter<Boolean>() {
+        override fun write(out: JsonWriter, value: Boolean?) {
+            out.value(value ?: false)
+        }
+
+        override fun read(input: JsonReader): Boolean = when (input.peek()) {
+            JsonToken.BOOLEAN -> input.nextBoolean()
+            JsonToken.NUMBER -> input.nextDouble() != 0.0
+            JsonToken.STRING -> input.nextString().trim()
+                .let { it == "1" || it.equals("true", ignoreCase = true) }
+            else -> {
+                input.skipValue()
+                false
+            }
+        }
+    }
+
     val gson = GsonBuilder()
         .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+        .registerTypeAdapter(Boolean::class.javaPrimitiveType, lenientBoolean)
+        .registerTypeAdapter(Boolean::class.javaObjectType, lenientBoolean)
         .create()
 
     lateinit var api: MajiApi
         private set
 
+    /** Base in use right now. The token refresh call runs outside Retrofit, so it needs it too. */
+    var baseUrl: String = BuildConfig.API_BASE
+        private set
+
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
-    fun init() {
+    fun init(apiBase: String) {
+        baseUrl = if (apiBase.endsWith("/")) apiBase else "$apiBase/"
         val client = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val token = SessionStore.accessToken
-                val request = if (token.isNullOrBlank()) {
-                    chain.request()
-                } else {
-                    chain.request().newBuilder()
-                        .header("Authorization", "Bearer $token")
-                        .header("Accept", "application/json")
-                        .build()
-                }
+                val request = chain.request().newBuilder()
+                    .header("Accept", "application/json")
+                    // Lets the backend gate old builds and tell them apart in logs.
+                    .header("X-App-Version-Code", BuildConfig.VERSION_CODE.toString())
+                    .header("X-App-Version-Name", BuildConfig.VERSION_NAME)
+                    .header("X-Device-Uid", SessionStore.deviceUid)
+                    .apply { if (!token.isNullOrBlank()) header("Authorization", "Bearer $token") }
+                    .build()
                 chain.proceed(request)
             }
             .authenticator(object : Authenticator {
@@ -68,7 +102,7 @@ object ApiClient {
             .build()
 
         api = Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE)
+            .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
@@ -79,7 +113,7 @@ object ApiClient {
         val body = """{"refresh_token":"$refreshToken","device_uid":"${SessionStore.deviceUid}"}"""
             .toRequestBody(jsonType)
         val request = Request.Builder()
-            .url(BuildConfig.API_BASE + "auth/refresh")
+            .url(baseUrl + "auth/refresh")
             .post(body)
             .build()
         return try {
@@ -125,7 +159,9 @@ object ApiClient {
             )
         )
     } catch (e: Exception) {
-        Result.failure(ApiException(500, "unexpected", e.message ?: "Something went wrong."))
+        // Never show a raw parser/library message: it names internals and helps nobody.
+        System.err.println("MajiLink request failed: ${e::class.java.name}: ${e.message}")
+        Result.failure(ApiException(500, "unexpected", "Something went wrong. Please try again."))
     }
 
     private fun parseError(e: HttpException): ApiException {

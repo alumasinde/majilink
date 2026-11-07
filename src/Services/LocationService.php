@@ -11,11 +11,12 @@ final class LocationService
 {
     public function list(int $userId): array
     {
-        return Db::all(
+        $rows = Db::all(
             'SELECT id, alias, lat, lng, landmark_note, is_default, created_at
              FROM locations WHERE user_id = ? ORDER BY is_default DESC, id ASC',
             [$userId]
         );
+        return array_map([$this, 'present'], $rows);
     }
 
     public function find(int $userId, int $id): array
@@ -24,6 +25,16 @@ final class LocationService
         if ($row === null) {
             throw HttpException::notFound('Delivery pin not found.');
         }
+        return $this->present($row);
+    }
+
+    /**
+     * MySQL hands TINYINT(1) back as a number, but the clients type these fields as
+     * booleans and refuse to parse 0/1. Normalise on the way out.
+     */
+    private function present(array $row): array
+    {
+        $row['is_default'] = (bool) $row['is_default'];
         return $row;
     }
 

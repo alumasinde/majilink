@@ -1,0 +1,21 @@
+# Shared hosting (Apache/LiteSpeed) equivalent of public/router.php, which only
+# runs under `php -S`. Without this the pretty /api/v1/... URLs 404 once deployed.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Never serve dotfiles (.env, .git) even if they end up under the document root.
+    RewriteRule "(^|/)\." - [F]
+
+    # Real files and directories (admin portal, landing page, assets) are served as-is.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Everything else is API routing.
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>

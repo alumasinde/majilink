@@ -6,16 +6,27 @@ import android.app.NotificationManager
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import ke.co.majilink.data.AppGate
+import ke.co.majilink.data.ServerStore
 import ke.co.majilink.data.SessionStore
 import ke.co.majilink.data.api.ApiClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class MajiLinkApp : Application() {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
         SessionStore.init(this)
-        ApiClient.init()
+        ServerStore.init(this)
+        ApiClient.init(ServerStore.effectiveBase)
+        AppGate.evaluate()
         createNotificationChannels()
+        scope.launch { ServerStore.refresh() }
     }
 
     private fun createNotificationChannels() {

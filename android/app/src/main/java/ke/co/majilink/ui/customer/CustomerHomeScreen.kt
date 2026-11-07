@@ -60,7 +60,8 @@ import ke.co.majilink.ui.components.StatusChip
 fun CustomerHomeScreen(
     viewModel: CustomerViewModel,
     onOpenVendor: (Long) -> Unit,
-    onTrackOrder: (Long) -> Unit
+    onTrackOrder: (Long) -> Unit,
+    onOpenLocations: () -> Unit
 ) {
     val home = viewModel.home
     val locations = viewModel.locations
@@ -85,7 +86,11 @@ fun CustomerHomeScreen(
                         )
                         Box {
                             Row(
-                                Modifier.clickable { menuOpen = true },
+                                // With no pin saved there is nothing to switch to, so send
+                                // the customer straight to the pin screen instead of an empty menu.
+                                Modifier.clickable {
+                                    if (locations.isEmpty()) onOpenLocations() else menuOpen = true
+                                },
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
@@ -111,6 +116,13 @@ fun CustomerHomeScreen(
                                         }
                                     )
                                 }
+                                DropdownMenuItem(
+                                    text = { Text("Manage pins") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onOpenLocations()
+                                    }
+                                )
                             }
                         }
                     }
