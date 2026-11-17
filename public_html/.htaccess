@@ -1,4 +1,4 @@
-# Shared hosting (Apache/LiteSpeed) equivalent of public/router.php, which only
+# Shared hosting (Apache/LiteSpeed) equivalent of public_html/router.php, which only
 # runs under `php -S`. Without this the pretty /api/v1/... URLs 404 once deployed.
 <IfModule mod_rewrite.c>
     RewriteEngine On

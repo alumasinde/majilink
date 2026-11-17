@@ -3,11 +3,28 @@ declare(strict_types=1);
 
 use MajiLink\Support\Env;
 
+$env = (string) Env::get('APP_ENV', 'production');
+$localUrl = 'http://localhost:8099';
+$productionUrl = 'https://majilink.co.ke';
+
+$url = trim((string) Env::get('APP_URL', ''));
+if ($url === '') {
+    $url = $env === 'production' ? $productionUrl : $localUrl;
+}
+// A production deployment must never advertise a loopback address.
+$isLoopback = preg_match(
+    '#^(?:https?://)?(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[?::1\]?)(?::\d+)?(?:/|$)#i',
+    $url
+) === 1;
+if ($env === 'production' && $isLoopback) {
+    $url = $productionUrl;
+}
+
 return [
-    'env'          => Env::get('APP_ENV', 'production'),
+    'env'          => $env,
     'debug'        => Env::bool('APP_DEBUG', false),
     'name'         => 'MajiLink',
-    'url'          => rtrim(Env::get('APP_URL', 'http://localhost:8099'), '/'),
+    'url'          => rtrim($url, '/'),
     'key'          => Env::get('APP_KEY', ''),
     'access_ttl'   => 900,          // 15 minutes
     'refresh_ttl'  => 2592000,      // 30 days

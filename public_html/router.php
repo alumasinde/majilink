@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Router for PHP's built-in server:
- *   php -S localhost:8099 -t public public/router.php
+ *   php -S localhost:8099 -t public_html public_html/router.php
  */
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';

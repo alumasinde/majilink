@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * End-to-end smoke test. Run against a live dev server:
- *   php -S 127.0.0.1:8099 -t public public/router.php
+ *   php -S 127.0.0.1:8099 -t public_html public_html/router.php
  *   php tests/api_smoke.php
  */
 

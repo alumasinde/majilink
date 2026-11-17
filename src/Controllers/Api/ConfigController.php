@@ -65,8 +65,19 @@ final class ConfigController
     {
         $configured = trim($this->settings->get('api_base_url', ''));
         if ($configured === '') {
-            $configured = rtrim((string) Config::get('url', 'http://localhost:8099'), '/') . '/api/v1';
+            $configured = rtrim((string) Config::get('url'), '/') . '/api/v1';
+        }
+        if ((string) Config::get('env') === 'production' && $this->isLoopback($configured)) {
+            $configured = 'https://majilink.co.ke/api/v1';
         }
         return rtrim($configured, '/') . '/';
+    }
+
+    private function isLoopback(string $url): bool
+    {
+        return preg_match(
+            '#^(?:https?://)?(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[?::1\]?)(?::\d+)?(?:/|$)#i',
+            $url
+        ) === 1;
     }
 }

@@ -1,3 +1,4 @@
+import java.net.URI
 import java.util.Properties
 
 plugins {
@@ -5,6 +6,26 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+}
+
+val productionApiBase = "https://majilink.co.ke/api/v1/"
+val debugApiBase = "http://10.0.2.2:8099/api/v1/"
+val apiBaseOverride = (project.findProperty("majilink.apiBase") as String?)?.trim().orEmpty()
+
+fun isLoopback(raw: String): Boolean {
+    val host = runCatching { URI(raw).host }.getOrNull()?.lowercase() ?: return true
+    return host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" ||
+        host == "::1" || host == "[::1]" || host.startsWith("127.")
+}
+
+fun apiBase(buildType: String): String {
+    // Release builds ship to production: only a real HTTPS override is accepted.
+    if (buildType == "release") {
+        val usable = apiBaseOverride.startsWith("https://") && !isLoopback(apiBaseOverride)
+        if (!usable) return productionApiBase
+    }
+    val base = apiBaseOverride.ifEmpty { if (buildType == "release") productionApiBase else debugApiBase }
+    return if (base.endsWith("/")) base else "$base/"
 }
 
 android {
@@ -20,9 +41,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-
-        val apiBase = (project.findProperty("majilink.apiBase") as String?) ?: "http://10.0.2.2:8099/api/v1/"
-        buildConfigField("String", "API_BASE", "\"$apiBase\"")
 
         // Provide MAPS_API_KEY in local.properties (git-ignored) or as a Gradle property.
         // Without a key the map draws no tiles: the screen looks blank, not broken.
@@ -40,9 +58,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("String", "API_BASE", "\"${apiBase("release")}\"")
         }
         debug {
             applicationIdSuffix = ".debug"
+            buildConfigField("String", "API_BASE", "\"${apiBase("debug")}\"")
         }
     }
 

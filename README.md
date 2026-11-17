@@ -6,7 +6,7 @@ Neighborhood water delivery platform for 20-litre jerrycan refills. One Kotlin a
 (blue customer, green vendor), a PHP/MySQL API, a server-rendered admin portal and a static landing page.
 
 ```
-public/          API front controller, admin portal, landing page, assets
+public_html/     API front controller, admin portal, landing page, assets
 src/             Support, HTTP, Middleware, Providers, Services, Controllers
 config/          app.php, database.php, routes.php
 database/        migrations/, seeders/, migrate.php
@@ -44,7 +44,7 @@ php database/migrate.php
 php database/seeders/seed.php
 
 # 3. Serve
-php -S 127.0.0.1:8099 -t public public/router.php
+php -S 127.0.0.1:8099 -t public_html public_html/router.php
 ```
 
 Then open:
@@ -186,19 +186,26 @@ application + admin approval + mode unlock, admin reports, broadcast and 401/403
 Not automated yet: Compose UI tests (login → order → track) and the admin portal's HTML. Those are
 still manual, as is anything that needs a map, GPS or a real phone.
 
-PHP lint: `find src public config database tests -name "*.php" -exec php -l {} \;`
+PHP lint: `find src public_html config database tests -name "*.php" -exec php -l {} \;`
 
 ## Deploying behind Apache (shared hosting)
 
-`public/` is the only directory that should be web-exposed; `src`, `config`, `database`, `storage`,
-`bootstrap.php` and `cron.php` sit above it and travel with it (`BASE_PATH` is anchored to
-`bootstrap.php`). `public/.htaccess` rewrites everything that is not a real file to `index.php`,
-which is what `public/router.php` does for `php -S` — without it the `/api/v1/...` URLs 404 in
+`public_html/` is the only directory that should be web-exposed; `src`, `config`, `database`, `storage`,
+`bootstrap.php` and `cron.php` sit beside it and travel with it (`BASE_PATH` is anchored to
+`bootstrap.php`). cPanel serves the domain from `~/public_html`, so upload the application to a
+folder such as `~/majilink` and copy the contents of `public_html/` into `~/public_html` — keep
+`bootstrap.php` and the other app folders one level above the web root. If you upload the entire
+project under `~/public_html` instead, point the domain/subdomain document root at
+`public_html/public_html`.
+
+`public_html/.htaccess` rewrites everything that is not a real file to `index.php`,
+which is what `public_html/router.php` does for `php -S` — without it the `/api/v1/...` URLs 404 in
 production, and the admin portal, landing page and assets keep being served directly because the
-rule skips existing files. Set `APP_URL` to the live HTTPS origin, `api_base_url` in Admin →
-Settings to `https://your-host/api/v1/`, `OTP_DEV_EXPOSE=0`, `MPESA_SIMULATE=0`, point
-`MPESA_CALLBACK_URL` at `https://your-host/api/v1/callbacks/mpesa`, and give `storage/logs`,
-`storage/cache` and `storage/uploads` write permission.
+rule skips existing files. Set `APP_URL` to `https://majilink.co.ke`, `api_base_url` in Admin →
+Settings to `https://majilink.co.ke/api/v1/`, `OTP_DEV_EXPOSE=0`, `MPESA_SIMULATE=0`, point
+`MPESA_CALLBACK_URL` at `https://majilink.co.ke/api/v1/callbacks/mpesa`, and give `storage/logs`,
+`storage/cache` and `storage/uploads` write permission. With `APP_ENV=production`, loopback
+`APP_URL`/`api_base_url` values are ignored and the live origin is used instead.
 
 ## Scheduled jobs
 
@@ -221,8 +228,10 @@ cd android
   Google Maps Compose, FCM messaging service, BiometricPrompt + EncryptedSharedPreferences.
 * The API base is resolved at **runtime**, not baked into every call. Order is: an address saved on
   the in-app **Server** screen, then a base URL adopted from `/api/v1/config` (same host only),
-  then the build default `http://10.0.2.2:8099/api/v1/` (emulator to host). Change the compile-time
-  default with `-Pmajilink.apiBase=https://api.example.com/api/v1/`.
+  then the build default. Release builds default to `https://majilink.co.ke/api/v1/`; debug builds
+  default to `http://10.0.2.2:8099/api/v1/` (emulator to host). A release build only accepts an
+  HTTPS override via `-Pmajilink.apiBase=https://api.example.com/api/v1/`; loopback and cleartext
+  overrides are discarded.
 * The Server screen is reachable on any debug build, and on a release build only when the server
   sets `allow_endpoint_override`. Saving drops the session, because those tokens belong to the
   server that issued them. A failed config fetch never blocks the app; a cached config does.
@@ -242,7 +251,7 @@ cd android
 
 ### Point the app at your laptop (LAN, no emulator)
 
-The default build target is `http://10.0.2.2:8099/api/v1/`, which only works inside the emulator.
+The debug build target is `http://10.0.2.2:8099/api/v1/`, which only works inside the emulator.
 To use a real phone on the same Wi-Fi, three things have to line up: the server must listen on the
 LAN, Windows must allow the port, and the APK must point at your laptop's IP.
 
@@ -256,7 +265,7 @@ ipconfig | grep -i "IPv4"
 **2. Serve on all interfaces** (`127.0.0.1` is unreachable from the phone):
 
 ```bash
-php -S 0.0.0.0:8099 -t public public/router.php
+php -S 0.0.0.0:8099 -t public_html public_html/router.php
 ```
 
 Confirm from the laptop first — if this fails, nothing else will work:
