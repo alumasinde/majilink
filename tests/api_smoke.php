@@ -181,10 +181,12 @@ $vendorOrders = call('GET', '/vendor/orders?filter=active', null, $vendorToken);
 check('Vendor sees the pending order', $vendorOrders['status'] === 200 && count($vendorOrders['json']['data']['orders'] ?? []) > 0, $vendorOrders['raw']);
 $firstVendorOrder = $vendorOrders['json']['data']['orders'][0] ?? [];
 check('Pre-accept privacy hides the pin and phone', ($firstVendorOrder['delivery']['lat'] ?? null) === null && ($firstVendorOrder['customer']['phone'] ?? null) === null, json_encode($firstVendorOrder['customer'] ?? []));
+check('Pre-accept privacy hides the landmark', ($firstVendorOrder['delivery']['landmark'] ?? null) === null, json_encode($firstVendorOrder['delivery'] ?? []));
 
 $accept = call('POST', '/vendor/orders/' . $orderId . '/accept', null, $vendorToken);
 check('Vendor accepts', $accept['status'] === 200, $accept['raw']);
 check('Accepted order reveals the exact pin', isset($accept['json']['data']['delivery']['lat']));
+check('Accepted order reveals the landmark', ($accept['json']['data']['delivery']['landmark'] ?? null) === 'Blue gate', $accept['raw']);
 
 $doubleAccept = call('POST', '/vendor/orders/' . $orderId . '/accept', null, $vendorToken);
 check('Illegal transition rejected', $doubleAccept['status'] === 409, $doubleAccept['raw']);

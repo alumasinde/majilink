@@ -43,6 +43,9 @@ if ($detailId > 0):
                 <dd>
                     <?= e($order['delivery']['alias']) ?><br>
                     <?= e($order['delivery']['lat'] . ', ' . $order['delivery']['lng']) ?><br>
+                    <?php if (!empty($order['delivery']['landmark'])): ?>
+                        Landmark: <?= e($order['delivery']['landmark']) ?><br>
+                    <?php endif; ?>
                     <a target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=<?= e($order['vendor']['base_lat'] . ',' . $order['vendor']['base_lng']) ?>&destination=<?= e($order['delivery']['lat'] . ',' . $order['delivery']['lng']) ?>">Route in Maps</a>
                 </dd>
                 <dt>Note</dt><dd><?= e($order['note'] ?? '—') ?></dd>

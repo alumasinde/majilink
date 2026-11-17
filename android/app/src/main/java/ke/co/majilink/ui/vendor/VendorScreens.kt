@@ -278,6 +278,10 @@ fun VendorOrderScreen(viewModel: VendorViewModel, orderId: Long, onBack: () -> U
                 val lng = order.delivery.lng
                 if (lat != null && lng != null) {
                     Text("Pin: ${"%.5f".format(lat)}, ${"%.5f".format(lng)}")
+                    order.delivery.landmark?.let {
+                        Spacer(Modifier.height(4.dp))
+                        Text("Landmark: $it", fontWeight = FontWeight.SemiBold)
+                    }
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(

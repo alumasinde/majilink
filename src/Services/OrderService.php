@@ -94,6 +94,7 @@ final class OrderService
                 'delivery_lat'      => $location['lat'],
                 'delivery_lng'      => $location['lng'],
                 'delivery_alias'    => $location['alias'],
+                'delivery_landmark' => $location['landmark_note'] ?? null,
                 'note'              => $input['note'] ?? null,
                 'requested_at'      => gmdate('Y-m-d H:i:s'),
                 'expires_at'        => gmdate('Y-m-d H:i:s', time() + $expiryMinutes * 60),
@@ -458,11 +459,12 @@ final class OrderService
                 'base_lng'      => (float) $order['vendor_lng'],
             ],
             'delivery'   => $hideDetails ? [
-                'alias' => null, 'lat' => null, 'lng' => null,
+                'alias' => null, 'lat' => null, 'lng' => null, 'landmark' => null,
             ] : [
-                'alias' => $order['delivery_alias'],
-                'lat'   => (float) $order['delivery_lat'],
-                'lng'   => (float) $order['delivery_lng'],
+                'alias'    => $order['delivery_alias'],
+                'lat'      => (float) $order['delivery_lat'],
+                'lng'      => (float) $order['delivery_lng'],
+                'landmark' => $order['delivery_landmark'] ?? null,
             ],
             'note'       => $hideDetails ? null : $order['note'],
         ];

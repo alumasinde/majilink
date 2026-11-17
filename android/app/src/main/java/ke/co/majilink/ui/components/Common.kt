@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
@@ -32,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -45,18 +47,18 @@ import ke.co.majilink.ui.theme.MajiPalette
 import ke.co.majilink.ui.theme.MajiRole
 
 private val chipColors: Map<String, Pair<Color, Color>> = mapOf(
-    "pending" to (Color(0xFFB45309) to Color(0xFFFFF4E5)),
-    "accepted" to (Color(0xFF1D4ED8) to Color(0xFFE5EDFF)),
-    "on the way" to (Color(0xFF0F766E) to Color(0xFFE2F8F5)),
-    "delivered" to (Color(0xFF15803D) to Color(0xFFE7F6EC)),
-    "cancelled" to (Color(0xFFB91C1C) to Color(0xFFFDECEC)),
-    "declined" to (Color(0xFFB91C1C) to Color(0xFFFDECEC)),
-    "expired" to (Color(0xFFB91C1C) to Color(0xFFFDECEC))
+    "pending" to (Color(0xFFF5C076) to Color(0x33F5A623)),
+    "accepted" to (Color(0xFF6BB8FF) to Color(0x336BB8FF)),
+    "on the way" to (Color(0xFF4FD1C5) to Color(0x334FD1C5)),
+    "delivered" to (Color(0xFF4ADE80) to Color(0x334ADE80)),
+    "cancelled" to (Color(0xFFFF8585) to Color(0x33FF8585)),
+    "declined" to (Color(0xFFFF8585) to Color(0x33FF8585)),
+    "expired" to (Color(0xFFFF8585) to Color(0x33FF8585))
 )
 
 @Composable
 fun StatusChip(status: String, modifier: Modifier = Modifier) {
-    val pair = chipColors[status.lowercase()] ?: (MajiPalette.Text to Color(0xFFF1F3F5))
+    val pair = chipColors[status.lowercase()] ?: (MajiPalette.DarkTextMuted to Color(0x22FFFFFF))
     Surface(
         color = pair.second,
         contentColor = pair.first,
@@ -78,7 +80,8 @@ fun PrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    icon: ImageVector? = null
 ) {
     Button(
         onClick = onClick,
@@ -86,12 +89,16 @@ fun PrimaryButton(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
         )
     ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+        }
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -122,16 +129,21 @@ fun OutlineAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    danger: Boolean = false
+    danger: Boolean = false,
+    icon: ImageVector? = null
 ) {
     val color = if (danger) MajiPalette.Danger else MaterialTheme.colorScheme.primary
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(2.dp, color)
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.5.dp, color)
     ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+        }
         Text(text, color = color, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -245,8 +257,8 @@ fun LabeledField(
 fun ErrorBanner(message: String?, onDismiss: () -> Unit = {}) {
     if (message.isNullOrBlank()) return
     Surface(
-        color = Color(0xFFFDECEC),
-        contentColor = Color(0xFF7F1D1D),
+        color = Color(0xFF3A1D20),
+        contentColor = Color(0xFFFFB4B4),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -257,7 +269,7 @@ fun ErrorBanner(message: String?, onDismiss: () -> Unit = {}) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(message, modifier = Modifier.weight(1f), fontSize = 14.sp)
-            TextButton(onClick = onDismiss) { Text("Dismiss", color = Color(0xFF7F1D1D)) }
+            TextButton(onClick = onDismiss) { Text("Dismiss", color = Color(0xFFFFB4B4)) }
         }
     }
 }
@@ -279,7 +291,12 @@ fun OfflineBanner(visible: Boolean) {
 }
 
 @Composable
-fun EmptyState(title: String, body: String, action: (@Composable () -> Unit)? = null) {
+fun EmptyState(
+    title: String,
+    body: String,
+    icon: ImageVector? = null,
+    action: (@Composable () -> Unit)? = null
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -288,10 +305,20 @@ fun EmptyState(title: String, body: String, action: (@Composable () -> Unit)? = 
     ) {
         Box(
             Modifier
-                .size(64.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape)
-        )
-        Spacer(Modifier.height(14.dp))
+                .size(120.dp)
+                .background(MajiPalette.Accent.copy(alpha = 0.10f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (icon != null) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MajiPalette.Accent,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(18.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Spacer(Modifier.height(6.dp))
         Text(
@@ -300,8 +327,47 @@ fun EmptyState(title: String, body: String, action: (@Composable () -> Unit)? = 
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (action != null) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
             action()
+        }
+    }
+}
+
+/**
+ * Plain dark screen header matching the design: optional back chevron, bold
+ * title and an optional trailing icon/action on the right.
+ */
+@Composable
+fun ScreenTopBar(
+    title: String,
+    onBack: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+            }
+            Text(
+                title,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                modifier = Modifier.weight(1f)
+            )
+            trailing?.invoke()
         }
     }
 }

@@ -158,7 +158,8 @@ data class VendorPartyDto(
 data class DeliveryDto(
     val alias: String? = null,
     val lat: Double? = null,
-    val lng: Double? = null
+    val lng: Double? = null,
+    val landmark: String? = null
 )
 
 data class RatingDto(val stars: Int = 0, val comment: String? = null)

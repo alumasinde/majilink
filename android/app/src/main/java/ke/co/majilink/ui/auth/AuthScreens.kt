@@ -37,8 +37,6 @@ import ke.co.majilink.data.SessionStore
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.LabeledField
 import ke.co.majilink.ui.components.PrimaryButton
-import ke.co.majilink.ui.theme.MajiPalette
-
 @Composable
 fun WelcomeScreen(onRegister: () -> Unit, onLogin: () -> Unit) {
     Scaffold { padding ->
@@ -364,7 +362,7 @@ fun PinLoginScreen(
             if (biometricAvailable && SessionStore.biometricGate) {
                 Spacer(Modifier.height(10.dp))
                 TextButton(onClick = { promptBiometric() }) {
-                    Text("Use fingerprint", color = MajiPalette.CustomerPrimary)
+                    Text("Use fingerprint", color = MaterialTheme.colorScheme.primary)
                 }
             }
             Spacer(Modifier.height(6.dp))

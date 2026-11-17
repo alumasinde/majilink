@@ -18,7 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,24 +40,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import ke.co.majilink.data.api.OrderDto
 import ke.co.majilink.data.api.VendorSummaryDto
 import ke.co.majilink.ui.components.ActionButton
 import ke.co.majilink.ui.components.EmptyState
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.OfflineBanner
-import ke.co.majilink.ui.components.OutlineAction
+import ke.co.majilink.ui.components.PrimaryButton
 import ke.co.majilink.ui.components.SectionCard
 import ke.co.majilink.ui.components.StatusChip
+import ke.co.majilink.ui.theme.MajiPalette
 
 @Composable
 fun CustomerHomeScreen(
@@ -65,81 +66,25 @@ fun CustomerHomeScreen(
 ) {
     val home = viewModel.home
     val locations = viewModel.locations
-    var menuOpen by remember { mutableStateOf(false) }
+    var pinMenuOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadLocations() }
 
-    Scaffold(
-        topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Delivering to",
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .85f),
-                            fontSize = 12.sp
-                        )
-                        Box {
-                            Row(
-                                // With no pin saved there is nothing to switch to, so send
-                                // the customer straight to the pin screen instead of an empty menu.
-                                Modifier.clickable {
-                                    if (locations.isEmpty()) onOpenLocations() else menuOpen = true
-                                },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Rounded.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    viewModel.selectedLocation?.alias ?: "Add a home pin",
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                            }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                locations.forEach { location ->
-                                    DropdownMenuItem(
-                                        text = { Text(location.alias) },
-                                        onClick = {
-                                            menuOpen = false
-                                            viewModel.selectLocation(location.id)
-                                        }
-                                    )
-                                }
-                                DropdownMenuItem(
-                                    text = { Text("Manage pins") },
-                                    onClick = {
-                                        menuOpen = false
-                                        onOpenLocations()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    Text(
-                        "MajiLink",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    ) { padding ->
+    Scaffold { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            HomeHeader(
+                alias = viewModel.selectedLocation?.alias,
+                hasPins = locations.isNotEmpty(),
+                menuOpen = pinMenuOpen,
+                onMenuChange = { pinMenuOpen = it },
+                onOpenLocations = onOpenLocations,
+                locations = locations,
+                onSelect = { viewModel.selectLocation(it) }
+            )
             OfflineBanner(home.offline)
             ErrorBanner(viewModel.message) { viewModel.clearMessage() }
 
@@ -151,54 +96,33 @@ fun CustomerHomeScreen(
                     )
                 }
                 item {
-                    val location = viewModel.selectedLocation
-                    if (location != null) {
-                        val camera = rememberCameraPositionState {
-                            position = CameraPosition.fromLatLngZoom(LatLng(location.lat, location.lng), 14.5f)
-                        }
-                        GoogleMap(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp),
-                            cameraPositionState = camera
-                        ) {
-                            Marker(
-                                state = rememberMarkerState(position = LatLng(location.lat, location.lng)),
-                                title = location.alias
-                            )
-                            home.vendors.forEach { vendor ->
-                                Marker(
-                                    state = rememberMarkerState(position = LatLng(vendor.baseLat, vendor.baseLng)),
-                                    title = vendor.businessName,
-                                    snippet = "KES ${vendor.pricePer20l} per 20L"
-                                )
-                            }
-                        }
-                    }
-                }
-                item {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Vendors near you", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            "Within ${home.radiusKm.toInt()} km",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        RadiusPicker(
+                            radiusKm = home.radiusKm,
+                            maxRadiusKm = home.maxRadiusKm,
+                            onPick = { viewModel.setRadius(it) }
                         )
                     }
                 }
                 if (home.vendors.isEmpty() && !home.loading) {
                     item {
                         EmptyState(
-                            title = "No vendors online nearby",
-                            body = "Try a wider radius or check again in a few minutes."
+                            title = "No vendors nearby",
+                            body = "Try updating your location or check back later.",
+                            icon = Icons.Rounded.LocationOn
                         ) {
-                            OutlineAction("Widen the radius", onClick = { viewModel.widenRadius() })
+                            PrimaryButton(
+                                "Update Location",
+                                icon = Icons.Rounded.MyLocation,
+                                onClick = onOpenLocations
+                            )
                         }
                     }
                 }
@@ -215,17 +139,157 @@ fun CustomerHomeScreen(
     }
 }
 
+/** Green gradient card header: current pin on the left, brand chip on the right. */
+@Composable
+private fun HomeHeader(
+    alias: String?,
+    hasPins: Boolean,
+    menuOpen: Boolean,
+    onMenuChange: (Boolean) -> Unit,
+    onOpenLocations: () -> Unit,
+    locations: List<ke.co.majilink.data.api.LocationDto>,
+    onSelect: (Long) -> Unit
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF1E9E6A), Color(0xFF0F5C3D))
+                )
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Rounded.LocationOn,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = .95f)
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Delivering to",
+                    color = Color.White.copy(alpha = .8f),
+                    fontSize = 12.sp
+                )
+                Box {
+                    Row(
+                        // With no pin saved there is nothing to switch to, so send
+                        // the customer straight to the pin screen instead of an empty menu.
+                        Modifier.clickable {
+                            if (!hasPins) onOpenLocations() else onMenuChange(true)
+                        },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            alias ?: "Add a home pin",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Icon(
+                            Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Choose a pin",
+                            tint = Color.White
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { onMenuChange(false) }) {
+                        locations.forEach { location ->
+                            DropdownMenuItem(
+                                text = { Text(location.alias) },
+                                onClick = {
+                                    onMenuChange(false)
+                                    onSelect(location.id)
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Manage pins") },
+                            onClick = {
+                                onMenuChange(false)
+                                onOpenLocations()
+                            }
+                        )
+                    }
+                }
+            }
+            Surface(
+                color = Color.White.copy(alpha = .18f),
+                shape = RoundedCornerShape(999.dp)
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Map,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Majilink", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadiusPicker(radiusKm: Double, maxRadiusKm: Double, onPick: (Double) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val options = listOf(1.0, 2.0, 3.0, 5.0).filter { it <= maxRadiusKm }
+    Box {
+        Row(
+            Modifier.clickable { open = true },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Within ${radiusKm.toInt()} km",
+                fontSize = 13.sp,
+                color = MajiPalette.Accent,
+                fontWeight = FontWeight.SemiBold
+            )
+            Icon(
+                Icons.Rounded.KeyboardArrowDown,
+                contentDescription = "Change radius",
+                tint = MajiPalette.Accent,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { km ->
+                DropdownMenuItem(
+                    text = { Text("${km.toInt()} km") },
+                    onClick = {
+                        open = false
+                        onPick(km)
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun MeterCard(order: OrderDto?, onTrack: () -> Unit) {
-    SectionCard(Modifier.padding(16.dp)) {
+    SectionCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
-                    .size(42.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f), CircleShape),
+                    .size(46.dp)
+                    .background(MajiPalette.Accent.copy(alpha = .14f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Rounded.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    Icons.Rounded.WaterDrop,
+                    contentDescription = null,
+                    tint = MajiPalette.Accent,
+                    modifier = Modifier.size(26.dp)
+                )
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {

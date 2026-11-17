@@ -118,6 +118,13 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
         loadVendors(location.id, next)
     }
 
+    fun setRadius(km: Double) {
+        val location = selectedLocation ?: return
+        val clamped = km.coerceIn(0.5, home.maxRadiusKm)
+        home = home.copy(radiusKm = clamped)
+        loadVendors(location.id, clamped)
+    }
+
     fun loadActiveOrder() {
         viewModelScope.launch {
             repo.orders("active").fold(

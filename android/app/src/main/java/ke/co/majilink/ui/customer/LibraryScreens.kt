@@ -4,8 +4,10 @@ import android.Manifest
 import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,16 +15,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Assignment
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.EventRepeat
+import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.ShoppingCart
+import androidx.compose.material.icons.rounded.SupportAgent
+import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
@@ -32,6 +51,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -64,6 +85,7 @@ import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.LabeledField
 import ke.co.majilink.ui.components.OutlineAction
 import ke.co.majilink.ui.components.PrimaryButton
+import ke.co.majilink.ui.components.ScreenTopBar
 import ke.co.majilink.ui.components.SectionCard
 import ke.co.majilink.ui.components.StatusChip
 import kotlinx.coroutines.launch
@@ -72,7 +94,8 @@ import kotlinx.coroutines.launch
 fun CustomerOrdersScreen(
     viewModel: CustomerViewModel,
     onOpenOrder: (Long) -> Unit,
-    onReorder: (Long) -> Unit
+    onReorder: (Long) -> Unit,
+    onBrowse: () -> Unit
 ) {
     var filter by remember { mutableStateOf("all") }
     LaunchedEffect(Unit) { viewModel.loadOrders() }
@@ -85,17 +108,7 @@ fun CustomerOrdersScreen(
     }
 
     Scaffold(
-        topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Text(
-                    "My orders",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
+        topBar = { ScreenTopBar("My orders") }
     ) { padding ->
         Column(
             Modifier
@@ -107,7 +120,7 @@ fun CustomerOrdersScreen(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 listOf("all" to "All", "active" to "Active", "history" to "History").forEach { (key, label) ->
                     val selected = filter == key
@@ -119,7 +132,7 @@ fun CustomerOrdersScreen(
                         Text(
                             label,
                             color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 9.dp),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -127,7 +140,13 @@ fun CustomerOrdersScreen(
             }
 
             if (orders.isEmpty()) {
-                EmptyState("No orders yet", "Your water deliveries will appear here.")
+                EmptyState(
+                    "No orders yet",
+                    "Your water deliveries will appear here.",
+                    icon = Icons.Rounded.Assignment
+                ) {
+                    PrimaryButton("Browse Vendors", icon = Icons.Rounded.ShoppingCart, onClick = onBrowse)
+                }
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(orders, key = { it.id }) { order ->
@@ -169,7 +188,7 @@ fun CustomerOrdersScreen(
 }
 
 @Composable
-fun ScheduleScreen(viewModel: CustomerViewModel) {
+fun ScheduleScreen(viewModel: CustomerViewModel, onBack: () -> Unit) {
     var addOpen by remember { mutableStateOf(false) }
     var quantity by remember { mutableStateOf(2) }
     var frequency by remember { mutableStateOf(1L) }
@@ -182,15 +201,18 @@ fun ScheduleScreen(viewModel: CustomerViewModel) {
 
     Scaffold(
         topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Text(
-                    "Repeat deliveries",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            ScreenTopBar(
+                "Repeat deliveries",
+                onBack = onBack,
+                trailing = {
+                    Icon(
+                        Icons.Rounded.EventRepeat,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            )
         }
     ) { padding ->
         Column(
@@ -201,8 +223,31 @@ fun ScheduleScreen(viewModel: CustomerViewModel) {
         ) {
             ErrorBanner(viewModel.message) { viewModel.clearMessage() }
             if (viewModel.schedules.isEmpty()) {
-                EmptyState("No repeat deliveries", "Set a weekly or monthly delivery so you never run dry.") {
-                    PrimaryButton("Add a schedule", onClick = { addOpen = true })
+                EmptyState(
+                    "No repeat deliveries",
+                    "Set a weekly or monthly delivery so you never run dry.",
+                    icon = Icons.Rounded.CalendarMonth
+                ) {
+                    PrimaryButton("Add a schedule", icon = Icons.Rounded.Add, onClick = { addOpen = true })
+                }
+                SectionCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Rounded.Lightbulb,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("Tip", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                "Schedule regular deliveries and stay topped up automatically.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             } else {
                 LazyColumn(Modifier.weight(1f)) {
@@ -362,17 +407,7 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
     LaunchedEffect(Unit) { viewModel.loadLocations(selectDefault = false) }
 
     Scaffold(
-        topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Text(
-                    "Delivery pins",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
+        topBar = { ScreenTopBar("Delivery pins") }
     ) { padding ->
         Column(
             Modifier
@@ -508,15 +543,16 @@ fun AccountScreen(
 
     Scaffold(
         topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Text(
-                    "Account",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            ScreenTopBar(
+                "Account",
+                trailing = {
+                    Icon(
+                        Icons.Rounded.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            )
         }
     ) { padding ->
         Column(
@@ -527,19 +563,59 @@ fun AccountScreen(
                 .padding(16.dp)
         ) {
             ErrorBanner(viewModel.message) { viewModel.clearMessage() }
+
             SectionCard {
-                Text(
-                    "${user?.firstName ?: ""} ${user?.lastName ?: ""}".trim().ifBlank { "MajiLink customer" },
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
-                Text(user?.phone ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                user?.email?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = .16f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "${user?.firstName ?: ""} ${user?.lastName ?: ""}".trim()
+                                .ifBlank { "MajiLink customer" },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Text(user?.phone ?: "", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        user?.email?.let {
+                            Text(it, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Icon(
+                        Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(Modifier.height(12.dp))
             SectionCard {
-                Text("Security", fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Rounded.VerifiedUser,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Security", fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Fingerprint unlock")
@@ -555,57 +631,61 @@ fun AccountScreen(
                             biometric = it
                             SessionStore.biometricGate = it
                             viewModel.setBiometricFlag(it)
-                        }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     )
                 }
-                Divider(Modifier.padding(vertical = 8.dp))
-                OutlineAction("Change PIN", onClick = { pinOpen = true })
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { devicesOpen = true }) {
-                    Text("Active devices (${viewModel.devices.size})")
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            SectionCard {
-                Text("Delivery pins", fontWeight = FontWeight.Bold)
-                Text(
-                    "Places you can order to. Add one on the map or from your GPS position.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Spacer(Modifier.height(10.dp))
+                OutlineAction(
+                    "Change PIN",
+                    icon = Icons.Rounded.Fingerprint,
+                    onClick = { pinOpen = true },
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlineAction("Manage pins", onClick = onOpenLocations)
-            }
-
-            Spacer(Modifier.height(12.dp))
-            SectionCard {
-                Text("Mode", fontWeight = FontWeight.Bold)
-                Text(
-                    "You are in customer mode. Vendor mode uses a green theme.",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                SettingRow(
+                    icon = Icons.Rounded.Devices,
+                    title = "Active devices (${viewModel.devices.size})",
+                    subtitle = "Phones and tablets signed in to this account",
+                    onClick = { devicesOpen = true }
                 )
-                Spacer(Modifier.height(8.dp))
-                if (SessionStore.hasVendorMode) {
-                    OutlineAction("Switch to vendor mode", onClick = onSwitchMode)
-                } else {
-                    Text(
-                        "Become a vendor from the web portal to unlock vendor mode.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
 
             Spacer(Modifier.height(12.dp))
             SectionCard {
-                Text("Help", fontWeight = FontWeight.Bold)
-                Text("Call +254 700 000 001 or email hello@majilink.co.ke", fontSize = 13.sp)
+                SettingRow(
+                    icon = Icons.Rounded.LocationOn,
+                    title = "Delivery pins",
+                    subtitle = "Places you can order to. Add one on the map or from your GPS position.",
+                    onClick = onOpenLocations
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            SectionCard {
+                SettingRow(
+                    icon = Icons.Rounded.LightMode,
+                    title = "Mode",
+                    subtitle = if (SessionStore.hasVendorMode) "Switch to your vendor dashboard."
+                    else "Become a vendor from the web portal to unlock vendor mode.",
+                    onClick = if (SessionStore.hasVendorMode) onSwitchMode else null
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            SectionCard {
+                SettingRow(
+                    icon = Icons.Rounded.SupportAgent,
+                    title = "Help",
+                    subtitle = "Call +254 700 000 001 or email hello@majilink.co.ke"
+                )
             }
 
             Spacer(Modifier.height(16.dp))
-            OutlineAction("Sign out", danger = true, onClick = {
+            OutlineAction("Sign out", danger = true, icon = Icons.AutoMirrored.Rounded.Logout, onClick = {
                 viewModel.logout { onLoggedOut() }
             }, modifier = Modifier.fillMaxWidth())
         }
@@ -675,5 +755,48 @@ fun AccountScreen(
                 TextButton(onClick = { devicesOpen = false }) { Text("Close") }
             }
         )
+    }
+}
+
+/** Icon-in-a-tile row used by the account screen's setting cards. */
+@Composable
+private fun SettingRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp)
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (onClick != null) {
+            Icon(
+                Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

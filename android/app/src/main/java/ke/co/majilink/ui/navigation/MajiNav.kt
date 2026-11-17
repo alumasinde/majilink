@@ -9,8 +9,10 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -88,7 +90,10 @@ fun MajiNav(
     Scaffold(
         bottomBar = {
             if (showBar) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ) {
                     tabs.forEach { tab ->
                         NavigationBarItem(
                             selected = currentRoute == tab.route,
@@ -100,7 +105,14 @@ fun MajiNav(
                                 }
                             },
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) }
+                            label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                            )
                         )
                     }
                 }
@@ -191,11 +203,27 @@ fun MajiNav(
                 CustomerOrdersScreen(
                     viewModel = customerViewModel,
                     onOpenOrder = { orderId -> navController.navigate("tracking/$orderId") },
-                    onReorder = { vendorId -> navController.navigate("order/$vendorId") }
+                    onReorder = { vendorId -> navController.navigate("order/$vendorId") },
+                    onBrowse = {
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
             composable("schedule") {
-                ScheduleScreen(viewModel = customerViewModel)
+                ScheduleScreen(
+                    viewModel = customerViewModel,
+                    onBack = {
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
             composable("locations") {
                 LocationsScreen(viewModel = customerViewModel)

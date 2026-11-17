@@ -57,6 +57,7 @@ import ke.co.majilink.ui.components.LabeledField
 import ke.co.majilink.ui.components.OutlineAction
 import ke.co.majilink.ui.components.PriceLine
 import ke.co.majilink.ui.components.PrimaryButton
+import ke.co.majilink.ui.components.ScreenTopBar
 import ke.co.majilink.ui.components.SectionCard
 import ke.co.majilink.ui.components.StatusChip
 import ke.co.majilink.ui.theme.MajiPalette
@@ -81,26 +82,7 @@ fun VendorOrderScreen(
     }
 
     Scaffold(
-        topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onBack) {
-                        Text("Back", color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Text(
-                        vendor?.businessName ?: "Order water",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                }
-            }
-        }
+        topBar = { ScreenTopBar(vendor?.businessName ?: "Order water", onBack = onBack) }
     ) { padding ->
         Column(
             Modifier
@@ -195,26 +177,7 @@ fun TrackingScreen(
     }
 
     Scaffold(
-        topBar = {
-            Surface(color = MaterialTheme.colorScheme.primary) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onBack) {
-                        Text("Back", color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Text(
-                        order?.orderNo ?: "Order",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                }
-            }
-        }
+        topBar = { ScreenTopBar(order?.orderNo ?: "Order", onBack = onBack) }
     ) { padding ->
         Column(
             Modifier
