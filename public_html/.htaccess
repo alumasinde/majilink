@@ -9,6 +9,11 @@ DirectoryIndex index.php index.html
     RewriteEngine On
     RewriteBase /
 
+    # cPanel/LiteSpeed hands PHP-CGI no Authorization header unless it is mapped into
+    # the request environment, which strips every bearer token before JWT auth runs.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     # AutoSSL covers the apex and www; keep the portal and API on HTTPS.
     # .well-known stays reachable over HTTP so certificate issuance never breaks.
     RewriteCond %{REQUEST_URI} !^/\.well-known/

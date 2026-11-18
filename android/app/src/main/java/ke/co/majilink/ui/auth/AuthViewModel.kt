@@ -193,6 +193,12 @@ class AuthViewModel(
     }
 
     private fun finish(payload: AuthPayload, identifier: String) {
+        if (payload.accessToken.isBlank()) {
+            // Saving a blank token would make the app look signed in while every
+            // request goes out unauthenticated.
+            state = state.copy(busy = false, error = "Sign-in did not return a session. Please try again.")
+            return
+        }
         SessionStore.save(payload)
         SessionStore.identifier = identifier
         SessionStore.mode = "customer"

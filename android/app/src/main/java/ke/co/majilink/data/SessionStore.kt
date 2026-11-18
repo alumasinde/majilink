@@ -2,6 +2,9 @@ package ke.co.majilink.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import ke.co.majilink.data.api.ApiClient
@@ -95,6 +98,20 @@ object SessionStore {
 
     val hasVendorMode: Boolean
         get() = user()?.modes?.contains("vendor") == true
+
+    /**
+     * Bumped when the server refuses to renew the session. The nav tree is keyed on
+     * this, so screens holding failed requests are discarded and the user is taken
+     * straight to sign-in instead of staring at 401 banners on every tab.
+     */
+    var signedOutEpoch by mutableIntStateOf(0)
+        private set
+
+    /** Drops the session but keeps the device identity, mode and biometric preference. */
+    fun forceExpire() {
+        prefs.edit().remove(KEY_ACCESS).remove(KEY_REFRESH).remove(KEY_USER).apply()
+        signedOutEpoch++
+    }
 
     fun clear() {
         prefs.edit().clear().apply()

@@ -82,7 +82,10 @@ object ApiClient {
             }
             .authenticator(object : Authenticator {
                 override fun authenticate(route: Route?, response: Response): Request? {
-                    if (response.request.url.encodedPath.endsWith("/auth/refresh")) return null
+                    val path = response.request.url.encodedPath
+                    // A rejected sign-in is a form error, not an expired session; retrying
+                    // it with old tokens would hide the real message.
+                    if (path.contains("/auth/")) return null
                     val sentToken = response.request.header("Authorization")?.removePrefix("Bearer ")
                     synchronized(this) {
                         val latest = SessionStore.accessToken
@@ -91,7 +94,13 @@ object ApiClient {
                                 .header("Authorization", "Bearer $latest")
                                 .build()
                         }
-                        val refreshToken = SessionStore.refreshToken ?: return null
+                        val refreshToken = SessionStore.refreshToken
+                        if (refreshToken.isNullOrBlank()) {
+                            // Nothing left to renew with: show the sign-in screen rather
+                            // than a bearer-token banner on every tab.
+                            if (!SessionStore.accessToken.isNullOrBlank()) SessionStore.forceExpire()
+                            return null
+                        }
                         val renewed = runBlocking { refreshBlocking(refreshToken) } ?: return null
                         return response.request.newBuilder()
                             .header("Authorization", "Bearer ${renewed.accessToken}")
@@ -119,7 +128,9 @@ object ApiClient {
         return try {
             OkHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    SessionStore.clear()
+                    // Only 4xx means the refresh token is dead. A 5xx or a proxy error is
+                    // an outage, and wiping the session would log the user out over it.
+                    if (response.code in 400..499) SessionStore.forceExpire()
                     return null
                 }
                 val raw = response.body?.string().orEmpty()

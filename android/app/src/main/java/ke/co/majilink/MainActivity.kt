@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,7 +56,9 @@ class MainActivity : FragmentActivity() {
                     when (gate) {
                         is Gate.Maintenance -> MaintenanceScreen(gate.message) { showServer = true }
                         is Gate.Update -> UpdateScreen(gate) { showServer = true }
-                        Gate.Ready -> MajiNav(role = role, onRoleChanged = { role = it })
+                        Gate.Ready -> key(SessionStore.signedOutEpoch) {
+                            MajiNav(role = role, onRoleChanged = { role = it })
+                        }
                     }
 
                     if (gate == Gate.Ready && !showServer && ServerStore.canOverrideBase) {

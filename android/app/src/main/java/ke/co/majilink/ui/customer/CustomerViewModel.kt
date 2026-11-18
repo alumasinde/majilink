@@ -77,6 +77,7 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun loadLocations(selectDefault: Boolean = true) {
+        if (locations.isEmpty()) home = home.copy(loading = true, error = null)
         viewModelScope.launch {
             repo.locations().fold(
                 onSuccess = { payload ->
@@ -84,9 +85,27 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
                     if (selectDefault || selectedLocation == null) {
                         selectedLocation = locations.firstOrNull { it.isDefault } ?: locations.firstOrNull()
                     }
-                    selectedLocation?.let { loadVendors(it.id) }
+                    val current = selectedLocation
+                    if (current == null) {
+                        // No pin means there is nothing to search around. Stop the
+                        // skeleton so the screen can ask for a location instead.
+                        home = home.copy(
+                            loading = false,
+                            vendors = emptyList(),
+                            error = null,
+                            offline = false
+                        )
+                    } else {
+                        loadVendors(current.id)
+                    }
                 },
-                onFailure = { fail(it) }
+                onFailure = { failure ->
+                    home = home.copy(
+                        loading = false,
+                        offline = (failure as? ApiException)?.status == 0
+                    )
+                    fail(failure)
+                }
             )
         }
     }
@@ -98,7 +117,7 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun loadVendors(locationId: Long, radiusKm: Double? = null) {
-        home = home.copy(loading = true)
+        home = home.copy(loading = true, error = null)
         viewModelScope.launch {
             repo.nearbyVendors(locationId, radiusKm).fold(
                 onSuccess = { payload ->
@@ -109,13 +128,23 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
                         offline = false
                     )
                 },
-                onFailure = {
-                    home = home.copy(loading = false, offline = true)
-                    fail(it)
+                onFailure = { failure ->
+                    // Keep the last list on screen; only a network failure is an
+                    // offline state, a 4xx/5xx is a server message.
+                    home = home.copy(
+                        loading = false,
+                        offline = (failure as? ApiException)?.status == 0
+                    )
+                    fail(failure)
                 }
             )
         }
         loadActiveOrder()
+    }
+
+    fun reloadVendors() {
+        val location = selectedLocation ?: return
+        loadVendors(location.id, home.radiusKm)
     }
 
     fun widenRadius() {

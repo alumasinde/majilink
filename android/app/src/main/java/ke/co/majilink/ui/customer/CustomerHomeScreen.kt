@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,6 +58,7 @@ import ke.co.majilink.ui.components.EmptyState
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.ListSkeleton
 import ke.co.majilink.ui.components.OfflineBanner
+import ke.co.majilink.ui.components.OutlineAction
 import ke.co.majilink.ui.components.PrimaryButton
 import ke.co.majilink.ui.components.SectionCard
 import ke.co.majilink.ui.components.SkeletonBlock
@@ -134,18 +136,45 @@ fun CustomerHomeScreen(
                 if (home.loading && home.vendors.isEmpty()) {
                     item { ListSkeleton(rows = 3) }
                 }
-                if (!home.loading && home.vendors.isEmpty()) {
+                if (!home.loading && locations.isEmpty()) {
                     item {
                         EmptyState(
-                            title = "No vendors nearby",
-                            body = "Try updating your location or check back later.",
-                            icon = Icons.Rounded.LocationOn
+                            title = "Pin your delivery spot",
+                            body = "Vendors are matched around a saved pin. Add one to see who delivers to your area.",
+                            icon = Icons.Rounded.MyLocation
                         ) {
                             PrimaryButton(
-                                "Update Location",
+                                "Add a pin",
                                 icon = Icons.Rounded.MyLocation,
                                 onClick = onOpenLocations
                             )
+                        }
+                    }
+                }
+                if (!home.loading && locations.isNotEmpty() && home.vendors.isEmpty()) {
+                    item {
+                        EmptyState(
+                            title = "No vendors within ${home.radiusKm.toInt()} km",
+                            body = "New vendors join often. Widen the radius or refresh the list.",
+                            icon = Icons.Rounded.LocationOn
+                        ) {
+                            Column(
+                                Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                if (home.radiusKm < home.maxRadiusKm) {
+                                    PrimaryButton(
+                                        "Search within ${minOf(home.radiusKm + 2.0, home.maxRadiusKm).toInt()} km",
+                                        icon = Icons.Rounded.MyLocation,
+                                        onClick = { viewModel.widenRadius() }
+                                    )
+                                }
+                                OutlineAction(
+                                    text = "Refresh vendors",
+                                    icon = Icons.Rounded.Refresh,
+                                    onClick = { viewModel.reloadVendors() }
+                                )
+                            }
                         }
                     }
                 }

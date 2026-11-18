@@ -33,6 +33,20 @@ final class Request
         if (isset($_SERVER['X_CSRF_TOKEN'])) {
             $headers['x-csrf-token'] = $_SERVER['X_CSRF_TOKEN'];
         }
+        // Apache/PHP-CGI hides the bearer token: .htaccess maps it to HTTP_AUTHORIZATION,
+        // and mod_rewrite duplicates it as REDIRECT_HTTP_AUTHORIZATION.
+        foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $key) {
+            if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') {
+                $headers['authorization'] = (string) $_SERVER[$key];
+            }
+        }
+        if (!isset($headers['authorization']) && function_exists('getallheaders')) {
+            foreach (getallheaders() as $name => $value) {
+                if (strtolower((string) $name) === 'authorization' && $value !== '') {
+                    $headers['authorization'] = (string) $value;
+                }
+            }
+        }
         return new self(
             strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET'),
             rawurldecode($path),
