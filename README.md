@@ -39,9 +39,9 @@ touches an existing MySQL/MariaDB service on 3306.
 mysql -h127.0.0.1 -P3307 -uroot -pmajilink_dev -e "CREATE DATABASE IF NOT EXISTS majilink CHARACTER SET utf8mb4"
 
 # 2. Configure and build the schema
-cp .env.example .env          # then set APP_KEY, DB_* to match
+cp .env.example .env          # then set APP_KEY, DB_* and SEED_DEMO_PASSWORD
 php database/migrate.php
-php database/seeders/seed.php
+php database/seeders/seed.php   # defaults + demo unless APP_ENV=production
 
 # 3. Serve
 php -S 127.0.0.1:8099 -t public_html public_html/router.php
@@ -55,7 +55,8 @@ Then open:
 
 ### Demo accounts
 
-Every seeded account uses the password **`Maji12345!`**.
+Demo data is seeded only when `SEED_DEMO_PASSWORD` is set (8+ characters) and `APP_ENV` is not
+`production`. Every demo account uses that password; the seeder never prints it.
 
 | Role | Email | Phone |
 |---|---|---|
@@ -206,6 +207,31 @@ Settings to `https://majilink.co.ke/api/v1/`, `OTP_DEV_EXPOSE=0`, `MPESA_SIMULAT
 `MPESA_CALLBACK_URL` at `https://majilink.co.ke/api/v1/callbacks/mpesa`, and give `storage/logs`,
 `storage/cache` and `storage/uploads` write permission. With `APP_ENV=production`, loopback
 `APP_URL`/`api_base_url` values are ignored and the live origin is used instead.
+
+### First deploy: schema and reference data
+
+Run both commands once from the application root (the folder containing `bootstrap.php`):
+
+```bash
+php database/migrate.php
+php database/seeders/seed.php
+```
+
+With `APP_ENV=production` the seeder is defaults-only: it creates roles, permissions, lookup
+tables, OTP channels and `app_settings`, and skips every demo customer, vendor, pin and order.
+To create the first admin, set these in `.env` before running it:
+
+```dotenv
+SEED_ADMIN_FIRST_NAME=
+SEED_ADMIN_LAST_NAME=
+SEED_ADMIN_PHONE=
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=
+```
+
+The seeder is idempotent. Re-running it does not reset an existing admin password; it only
+ensures the `admin` role is attached. Leave the values blank and no admin is created.
+`--defaults` forces the same mode outside production.
 
 ## Scheduled jobs
 

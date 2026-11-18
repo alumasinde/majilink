@@ -3,11 +3,21 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../bootstrap.php';
 
+use MajiLink\Support\Config;
 use MajiLink\Support\Db;
+use MajiLink\Support\Env;
 use MajiLink\Support\Hashing;
 
 /**
- * Idempotent seeder: lookups upsert by unique name, demo rows are skipped when present.
+ * Idempotent seeder. Reference data is always seeded; demo accounts, vendors,
+ * pins and orders are local-development only.
+ *
+ * Modes:
+ *   php database/seeders/seed.php            defaults + demo (unless APP_ENV=production)
+ *   php database/seeders/seed.php --defaults reference data + optional admin only
+ *
+ * The first admin is created from SEED_ADMIN_* environment values. Demo
+ * accounts require SEED_DEMO_PASSWORD; nothing is hardcoded or printed.
  */
 
 function seed_lookup(string $table, array $names): array
@@ -46,6 +56,22 @@ function seed_user(string $first, string $last, string $phone, ?string $email, s
         Db::run('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [$id, $roleId]);
     }
     return $id;
+}
+
+// ---------------------------------------------------------------------------
+// Mode
+// ---------------------------------------------------------------------------
+$arguments = $argv ?? [];
+$isProduction = Config::get('env') === 'production';
+$wantsDemo = in_array('--demo', $arguments, true);
+$defaultsOnly = $isProduction || in_array('--defaults', $arguments, true);
+
+if ($isProduction && $wantsDemo) {
+    fwrite(STDERR, "Refusing to seed demo data while APP_ENV=production.\n");
+    return;
+}
+if ($wantsDemo) {
+    $defaultsOnly = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,14 +228,67 @@ foreach ($settings as $key => [$value, $description]) {
 }
 
 // ---------------------------------------------------------------------------
-// Demo accounts
+// First admin (environment driven, never hardcoded)
 // ---------------------------------------------------------------------------
-$password = 'Maji12345!';
-$adminId = seed_user('Amos', 'Kimani', '0700000001', 'admin@majilink.co.ke', $password, ['admin']);
-$supportId = seed_user('Sarah', 'Otieno', '0700000002', 'support@majilink.co.ke', $password, ['support']);
-$albertId = seed_user('Albert', 'Mwangi', '0712000001', 'albert@example.com', $password, ['customer']);
-$graceId = seed_user('Grace', 'Wanjiku', '0712000002', 'grace@example.com', $password, ['customer']);
-seed_user('Brian', 'Wekesa', '0722000005', 'brian@example.com', $password, ['customer']);
+$adminNotice = null;
+$adminFields = [
+    'SEED_ADMIN_FIRST_NAME' => trim((string) Env::get('SEED_ADMIN_FIRST_NAME', '')),
+    'SEED_ADMIN_LAST_NAME'  => trim((string) Env::get('SEED_ADMIN_LAST_NAME', '')),
+    'SEED_ADMIN_PHONE'      => trim((string) Env::get('SEED_ADMIN_PHONE', '')),
+    'SEED_ADMIN_PASSWORD'   => (string) Env::get('SEED_ADMIN_PASSWORD', ''),
+];
+$adminEmail = trim((string) Env::get('SEED_ADMIN_EMAIL', ''));
+$providedAdminFields = array_filter($adminFields, static fn (string $value): bool => $value !== '');
+$missingAdminFields = array_keys(array_diff_key($adminFields, $providedAdminFields));
+
+if ($missingAdminFields === []) {
+    $emailOwner = $adminEmail !== '' ? Db::value('SELECT phone FROM users WHERE email = ?', [$adminEmail]) : null;
+    $phoneOwner = Db::value('SELECT 1 FROM users WHERE phone = ?', [$adminFields['SEED_ADMIN_PHONE']]);
+
+    if (mb_strlen($adminFields['SEED_ADMIN_PASSWORD']) < 8) {
+        $adminNotice = 'Admin not seeded: SEED_ADMIN_PASSWORD must be at least 8 characters.';
+    } elseif ($emailOwner !== null && $emailOwner !== $adminFields['SEED_ADMIN_PHONE']) {
+        $adminNotice = 'Admin not seeded: SEED_ADMIN_EMAIL belongs to a different account.';
+    } else {
+        seed_user(
+            $adminFields['SEED_ADMIN_FIRST_NAME'],
+            $adminFields['SEED_ADMIN_LAST_NAME'],
+            $adminFields['SEED_ADMIN_PHONE'],
+            $adminEmail !== '' ? $adminEmail : null,
+            $adminFields['SEED_ADMIN_PASSWORD'],
+            ['admin']
+        );
+        $adminNotice = $phoneOwner === null
+            ? 'Admin account created.'
+            : 'Admin account already existed; admin role ensured and password left unchanged.';
+    }
+} elseif ($providedAdminFields !== []) {
+    $adminNotice = 'Admin not seeded: missing ' . implode(', ', $missingAdminFields) . '.';
+}
+
+if ($defaultsOnly) {
+    echo "Reference data seeded (roles, permissions, lookups, verification channels, settings).\n";
+    if ($adminNotice !== null) {
+        echo $adminNotice . "\n";
+    }
+    echo "Demo data skipped.\n";
+    return;
+}
+
+// ---------------------------------------------------------------------------
+// Demo data (local development only)
+// ---------------------------------------------------------------------------
+$demoPassword = (string) Env::get('SEED_DEMO_PASSWORD', '');
+if (mb_strlen($demoPassword) < 8) {
+    echo "Demo data skipped: set SEED_DEMO_PASSWORD (8+ characters) to seed demo accounts.\n";
+    return;
+}
+
+$adminId = seed_user('Amos', 'Kimani', '0700000001', 'admin@majilink.co.ke', $demoPassword, ['admin']);
+$supportId = seed_user('Sarah', 'Otieno', '0700000002', 'support@majilink.co.ke', $demoPassword, ['support']);
+$albertId = seed_user('Albert', 'Mwangi', '0712000001', 'albert@example.com', $demoPassword, ['customer']);
+$graceId = seed_user('Grace', 'Wanjiku', '0712000002', 'grace@example.com', $demoPassword, ['customer']);
+seed_user('Brian', 'Wekesa', '0722000005', 'brian@example.com', $demoPassword, ['customer']);
 
 $vendorSeeds = [
     ['Peter', 'Njoroge', '0722000001', 'peter@kilimaniwater.co.ke', 'Kilimani Pure Water', 'Purified', '60.00', -1.29200, 36.78600, 'Approved'],
@@ -219,7 +298,7 @@ $vendorSeeds = [
 ];
 $vendorIds = [];
 foreach ($vendorSeeds as $index => [$first, $last, $phone, $email, $business, $source, $price, $lat, $lng, $status]) {
-    $userId = seed_user($first, $last, $phone, $email, $password, $status === 'Approved' ? ['customer', 'vendor'] : ['customer']);
+    $userId = seed_user($first, $last, $phone, $email, $demoPassword, $status === 'Approved' ? ['customer', 'vendor'] : ['customer']);
     $existing = Db::value('SELECT id FROM vendors WHERE user_id = ?', [$userId]);
     if ($existing === null) {
         $vendorId = Db::insert('vendors', [
@@ -406,4 +485,7 @@ if (Db::value('SELECT 1 FROM orders WHERE order_no = ?', ['ML-100003']) === null
     Db::insert('order_status_history', ['order_id' => $orderId, 'status_id' => $pendingStatus, 'changed_by' => $albertId, 'note' => 'Order placed']);
 }
 
-echo "Seed complete. Demo password for every seeded account: {$password}\n";
+if ($adminNotice !== null) {
+    echo $adminNotice . "\n";
+}
+echo "Seed complete. Demo accounts use the password from SEED_DEMO_PASSWORD.\n";
