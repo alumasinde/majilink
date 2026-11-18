@@ -10,6 +10,7 @@ storage/cache/*
 storage/uploads/vendor-docs/*
 !storage/uploads/vendor-docs/.gitkeep
 android/.gradle/
+android/.kotlin/
 android/build/
 android/app/build/
 android/local.properties

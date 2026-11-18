@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.maplibre.android.MapLibre
 
 class MajiLinkApp : Application() {
 
@@ -21,6 +22,7 @@ class MajiLinkApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        MapLibre.getInstance(this)
         SessionStore.init(this)
         ServerStore.init(this)
         ApiClient.init(ServerStore.effectiveBase)

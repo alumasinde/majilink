@@ -45,15 +45,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.JerrycanStepper
 import ke.co.majilink.ui.components.LabeledField
+import ke.co.majilink.ui.components.MajiMap
+import ke.co.majilink.ui.components.MapMarker
+import ke.co.majilink.ui.components.MapPoint
 import ke.co.majilink.ui.components.OutlineAction
 import ke.co.majilink.ui.components.PriceLine
 import ke.co.majilink.ui.components.PrimaryButton
@@ -243,26 +240,23 @@ fun TrackingScreen(
             val delivery = order.delivery
             if (delivery.lat != null && delivery.lng != null) {
                 Spacer(Modifier.height(14.dp))
-                val camera = rememberCameraPositionState {
-                    position = CameraPosition.fromLatLngZoom(LatLng(delivery.lat, delivery.lng), 14f)
-                }
-                GoogleMap(
+                MajiMap(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp),
-                    cameraPositionState = camera
-                ) {
-                    Marker(
-                        state = rememberMarkerState(position = LatLng(delivery.lat, delivery.lng)),
-                        title = delivery.alias ?: "Your gate"
-                    )
-                    Marker(
-                        state = rememberMarkerState(
-                            position = LatLng(order.vendor.baseLat, order.vendor.baseLng)
+                    cameraTarget = MapPoint(delivery.lat, delivery.lng),
+                    cameraZoom = 14.0,
+                    markers = listOf(
+                        MapMarker(
+                            MapPoint(delivery.lat, delivery.lng),
+                            delivery.alias ?: "Your gate"
                         ),
-                        title = order.vendor.businessName
+                        MapMarker(
+                            MapPoint(order.vendor.baseLat, order.vendor.baseLng),
+                            order.vendor.businessName
+                        )
                     )
-                }
+                )
             }
 
             Spacer(Modifier.height(14.dp))

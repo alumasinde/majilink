@@ -1,5 +1,4 @@
 import java.net.URI
-import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -41,16 +40,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-
-        // Provide MAPS_API_KEY in local.properties (git-ignored) or as a Gradle property.
-        // Without a key the map draws no tiles: the screen looks blank, not broken.
-        val localProps = Properties().apply {
-            val file = rootProject.file("local.properties")
-            if (file.exists()) file.inputStream().use { load(it) }
-        }
-        val mapsKey = (project.findProperty("majilink.mapsKey") as String?)
-            ?: localProps.getProperty("majilink.mapsKey").orEmpty()
-        manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
 
     buildTypes {
@@ -113,9 +102,8 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation("org.maplibre.gl:android-sdk:11.11.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("com.google.maps.android:maps-compose:6.2.1")
 
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

@@ -59,7 +59,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,24 +70,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import ke.co.majilink.data.SessionStore
 import ke.co.majilink.ui.components.ActionButton
 import ke.co.majilink.ui.components.EmptyState
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.LabeledField
+import ke.co.majilink.ui.components.MajiMap
+import ke.co.majilink.ui.components.MapMarker
+import ke.co.majilink.ui.components.MapPoint
 import ke.co.majilink.ui.components.OutlineAction
 import ke.co.majilink.ui.components.PrimaryButton
 import ke.co.majilink.ui.components.ScreenTopBar
 import ke.co.majilink.ui.components.SectionCard
 import ke.co.majilink.ui.components.StatusChip
-import kotlinx.coroutines.launch
 
 @Composable
 fun CustomerOrdersScreen(
@@ -355,7 +349,6 @@ fun ScheduleScreen(viewModel: CustomerViewModel, onBack: () -> Unit) {
 @Composable
 fun LocationsScreen(viewModel: CustomerViewModel) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var addOpen by remember { mutableStateOf(false) }
     var alias by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -364,17 +357,15 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
     var locationError by remember { mutableStateOf<String?>(null) }
 
     // Nairobi centre until the customer taps the map or a GPS fix lands.
-    val camera = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(-1.2921, 36.8219), 13f)
-    }
+    var mapTarget by remember { mutableStateOf<MapPoint?>(null) }
+    var mapZoom by remember { mutableStateOf(13.0) }
 
     fun applyFix(fixLat: Double, fixLng: Double) {
         lat = fixLat
         lng = fixLng
         locationError = null
-        scope.launch {
-            camera.animate(CameraUpdateFactory.newLatLngZoom(LatLng(fixLat, fixLng), 16f))
-        }
+        mapTarget = MapPoint(fixLat, fixLng)
+        mapZoom = 16.0
     }
 
     fun capture() {
@@ -461,24 +452,28 @@ fun LocationsScreen(viewModel: CustomerViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
-                    GoogleMap(
+                    MajiMap(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(240.dp),
-                        cameraPositionState = camera,
+                        cameraTarget = mapTarget,
+                        cameraZoom = mapZoom,
+                        markers = if (pinLat != null && pinLng != null) {
+                            listOf(
+                                MapMarker(
+                                    MapPoint(pinLat, pinLng),
+                                    alias.ifBlank { "Home pin" }
+                                )
+                            )
+                        } else {
+                            emptyList()
+                        },
                         onMapClick = { point ->
-                            lat = point.latitude
-                            lng = point.longitude
+                            lat = point.lat
+                            lng = point.lng
                             locationError = null
                         }
-                    ) {
-                        if (pinLat != null && pinLng != null) {
-                            Marker(
-                                state = rememberMarkerState(position = LatLng(pinLat, pinLng)),
-                                title = alias.ifBlank { "Home pin" }
-                            )
-                        }
-                    }
+                    )
                     Spacer(Modifier.height(8.dp))
                     if (pinLat != null && pinLng != null) {
                         Text(

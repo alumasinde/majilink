@@ -24,7 +24,7 @@ cron.php         order expiry, recurring orders, heartbeat cleanup
 | API v1 (auth, OTP, devices, pins, vendors, orders, payments, wallet, payouts, recurring, ratings, admin, config, M-Pesa callback) | Built; 76/76 smoke checks pass against the running server |
 | Admin portal (14 pages + actions) | Built; every page returns 200 with a staff session, actions persist and are audited |
 | Landing page (hero, steps, why, vendor CTA, FAQ, contact) | Built; served and contact form writes to `storage/logs/contact.log` |
-| Android app (Compose, Retrofit, Room, Maps, biometrics, FCM service) | Source complete; see build notes below |
+| Android app (Compose, Retrofit, Room, MapLibre, biometrics, FCM service) | Source complete; see build notes below |
 
 ## Running the backend locally
 
@@ -225,7 +225,7 @@ cd android
 
 * Kotlin 2.0.21, Compose BOM 2024.10.01, AGP 8.7.3, minSdk 26, target/compileSdk 35.
 * Retrofit + OkHttp with a device-bound refresh flow, Room cache for vendors/orders/pins,
-  Google Maps Compose, FCM messaging service, BiometricPrompt + EncryptedSharedPreferences.
+  MapLibre + OpenFreeMap, FCM messaging service, BiometricPrompt + EncryptedSharedPreferences.
 * The API base is resolved at **runtime**, not baked into every call. Order is: an address saved on
   the in-app **Server** screen, then a base URL adopted from `/api/v1/config` (same host only),
   then the build default. Release builds default to `https://majilink.co.ke/api/v1/`; debug builds
@@ -237,14 +237,13 @@ cd android
   server that issued them. A failed config fetch never blocks the app; a cached config does.
 * `AppGate` renders the server's decision above the whole nav graph: maintenance screen, or the
   update screen (dismissible unless the server forces it). `MainActivity` hosts it.
-* Maps need a key: add `majilink.mapsKey=…` to `android/local.properties` (git-ignored, preferred)
-  or `android/gradle.properties`, or pass `-Pmajilink.mapsKey=…`. Without a key the rest of the app
-  works and the map area stays blank cream with a Google logo and zoom buttons — that means missing
-  or unauthorised key, not a code bug. In Google Cloud enable **Maps SDK for Android** (billing on),
-  then restrict the key to package `ke.co.majilink` *and* `ke.co.majilink.debug` plus your signing
-  SHA-1 (`./gradlew signingReport`), or the debug build will not draw tiles.
-* Taps on a blank map still work, so a pin can be placed before the key is configured, but nobody
-  can aim without tiles — set the key before demoing pin picking.
+* Maps use **MapLibre + OpenFreeMap** (`ui/components/MajiMap.kt`): no Google Maps key, no
+  billing account. Tiles come from `https://tiles.openfreemap.org/styles/liberty`; the style is a
+  single constant there if you ever move to a paid or self-hosted tile server.
+  Keep the `© OpenFreeMap · © OpenMapTiles · © OpenStreetMap` attribution visible — it is a
+  licence condition.
+* GPS still uses Google Play Services' fused location provider (free, unrelated to Maps billing),
+  and the Navigate button hands off to the phone's map app.
 * Push needs a Firebase project: drop `google-services.json` into `android/app/` and apply the
   Google services plugin. Without it the app runs; notifications are still stored server-side and
   readable in-app.
