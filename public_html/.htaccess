@@ -9,8 +9,21 @@ DirectoryIndex index.php index.html
     RewriteEngine On
     RewriteBase /
 
+    # AutoSSL covers the apex and www; keep the portal and API on HTTPS.
+    # .well-known stays reachable over HTTP so certificate issuance never breaks.
+    RewriteCond %{REQUEST_URI} !^/\.well-known/
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
     # Never serve dotfiles (.env, .git) even if they end up under the document root.
+    # .well-known is exempt so AutoSSL can validate renewals.
+    RewriteCond %{REQUEST_URI} !^/\.well-known/
     RewriteRule "(^|/)\." - [F]
+
+    # Clean admin URLs: /admin/login -> /admin/index.php?p=login
+    RewriteRule ^admin/?$ /admin/index.php [L]
+    RewriteRule ^admin/([A-Za-z0-9_-]+)/?$ /admin/index.php?p=$1 [L,QSA]
 
     # The landing page lives in site/; the built-in router.php does the same.
     RewriteRule ^$ /site/ [R=302,L]

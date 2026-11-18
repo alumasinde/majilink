@@ -19,6 +19,10 @@ if ($uri === '/') {
 }
 
 if (str_starts_with($uri, '/admin')) {
+    // Mirrors the .htaccess clean-URL rule: /admin/login -> ?p=login.
+    if (preg_match('#^/admin/([A-Za-z0-9_-]+)/?$#', $uri, $match) === 1) {
+        $_GET['p'] = $match[1];
+    }
     require __DIR__ . '/admin/index.php';
     return true;
 }

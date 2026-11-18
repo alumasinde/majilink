@@ -50,7 +50,7 @@ php -S 127.0.0.1:8099 -t public_html public_html/router.php
 Then open:
 
 * Landing page — <http://127.0.0.1:8099/site/>
-* Admin portal — <http://127.0.0.1:8099/admin/index.php>
+* Admin portal — <http://127.0.0.1:8099/admin/>
 * API health — <http://127.0.0.1:8099/api/v1/health>
 
 ### Demo accounts

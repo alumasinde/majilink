@@ -40,8 +40,9 @@ function e(mixed $value): string
 
 function admin_url(string $page = 'dashboard', array $params = []): string
 {
-    $params = array_filter(['p' => $page] + $params, static fn ($v) => $v !== null && $v !== '');
-    return '/admin/index.php?' . http_build_query($params);
+    $params = array_filter($params, static fn ($v) => $v !== null && $v !== '');
+    $path = $page === 'dashboard' ? '/admin/' : '/admin/' . rawurlencode($page);
+    return $params === [] ? $path : $path . '?' . http_build_query($params);
 }
 
 function redirect_to(string $page, array $params = []): never

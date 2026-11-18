@@ -26,5 +26,4 @@
         </div>
         <button class="btn" type="submit">Sign in</button>
     </form>
-    <p class="stat-note" style="margin-top:16px">Demo: admin@majilink.co.ke · Maji12345!</p>
 </div>
