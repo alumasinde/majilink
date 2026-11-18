@@ -47,6 +47,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // x86/x86_64 natives are only useful on emulators; dropping them saves ~23 MB.
+            ndk {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            }
             buildConfigField("String", "API_BASE", "\"${apiBase("release")}\"")
         }
         debug {
