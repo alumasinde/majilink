@@ -1,9 +1,9 @@
 # Shared hosting (Apache/LiteSpeed) equivalent of public_html/router.php, which only
 # runs under `php -S`. Without this the pretty /api/v1/... URLs 404 once deployed.
 
-# cPanel creates a placeholder index.html in the document root; prefer the app. Delete
-# that file as well, because some hosts ignore DirectoryIndex overrides.
-DirectoryIndex index.php
+# cPanel creates a placeholder index.html in the document root; prefer the app, but keep
+# the landing page working because site/ only has index.html.
+DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -11,6 +11,9 @@ DirectoryIndex index.php
 
     # Never serve dotfiles (.env, .git) even if they end up under the document root.
     RewriteRule "(^|/)\." - [F]
+
+    # The landing page lives in site/; the built-in router.php does the same.
+    RewriteRule ^$ /site/ [R=302,L]
 
     # Real files and directories (admin portal, landing page, assets) are served as-is.
     RewriteCond %{REQUEST_FILENAME} -f [OR]

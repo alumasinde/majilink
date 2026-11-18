@@ -191,13 +191,26 @@ PHP lint: `find src public_html config database tests -name "*.php" -exec php -l
 
 ## Deploying behind Apache (shared hosting)
 
-`public_html/` is the only directory that should be web-exposed; `src`, `config`, `database`, `storage`,
-`bootstrap.php` and `cron.php` sit beside it and travel with it (`BASE_PATH` is anchored to
-`bootstrap.php`). cPanel serves the domain from `~/public_html`, so upload the application to a
-folder such as `~/majilink` and copy the contents of `public_html/` into `~/public_html` — keep
-`bootstrap.php` and the other app folders one level above the web root. If you upload the entire
-project under `~/public_html` instead, point the domain/subdomain document root at
-`public_html/public_html`.
+`public_html/` is the only directory that should be web-exposed. `BASE_PATH` is anchored to
+`bootstrap.php`, so `bootstrap.php`, `src/`, `config/`, `database/`, `storage/` and `cron.php` must
+sit exactly one level above the web root. Two layouts work:
+
+1. **Main domain (`~/public_html`).** Upload the repository to your account home so its
+   `public_html/` merges into `~/public_html/`. The web root then contains `index.php`,
+   `.htaccess`, `admin/`, `site/`, `assets/`, while the app folders and `bootstrap.php` sit in `~/`.
+2. **Own document root.** Upload the repository to a folder such as `~/majilink` and point the
+   domain's document root at `~/majilink/public_html` (cPanel → Domains). If the host only allows
+   `~/public_html` and you uploaded the whole project there, the entry point is
+   `~/public_html/public_html/index.php`, so point the document root there instead.
+
+File Manager copies skip dotfiles by default: enable **Show Hidden Files** and make sure
+`.htaccess` and `.env` are uploaded. Delete the host's placeholder `index.html` from the document
+root, because Apache serves it before `index.php`. `public_html/.htaccess` sets
+`DirectoryIndex index.php index.html` and redirects the bare domain to `/site/`.
+
+If HTTPS shows a certificate for the hosting server's own hostname (for example
+`CN=dan1.host-ww.net`), AutoSSL has not issued a certificate for `majilink.co.ke` yet. Run AutoSSL
+for the domain and `www` after DNS and the document root are correct.
 
 `public_html/.htaccess` rewrites everything that is not a real file to `index.php`,
 which is what `public_html/router.php` does for `php -S` — without it the `/api/v1/...` URLs 404 in
