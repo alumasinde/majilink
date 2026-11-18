@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../bootstrap.php';
 
+use MajiLink\Services\OtpService;
 use MajiLink\Support\Config;
 use MajiLink\Support\Db;
 use MajiLink\Support\Env;
@@ -235,26 +236,27 @@ $adminFields = [
     'SEED_ADMIN_FIRST_NAME' => trim((string) Env::get('SEED_ADMIN_FIRST_NAME', '')),
     'SEED_ADMIN_LAST_NAME'  => trim((string) Env::get('SEED_ADMIN_LAST_NAME', '')),
     'SEED_ADMIN_PHONE'      => trim((string) Env::get('SEED_ADMIN_PHONE', '')),
+    'SEED_ADMIN_EMAIL'      => mb_strtolower(trim((string) Env::get('SEED_ADMIN_EMAIL', ''))),
     'SEED_ADMIN_PASSWORD'   => (string) Env::get('SEED_ADMIN_PASSWORD', ''),
 ];
-$adminEmail = trim((string) Env::get('SEED_ADMIN_EMAIL', ''));
 $providedAdminFields = array_filter($adminFields, static fn (string $value): bool => $value !== '');
 $missingAdminFields = array_keys(array_diff_key($adminFields, $providedAdminFields));
 
 if ($missingAdminFields === []) {
-    $emailOwner = $adminEmail !== '' ? Db::value('SELECT phone FROM users WHERE email = ?', [$adminEmail]) : null;
-    $phoneOwner = Db::value('SELECT 1 FROM users WHERE phone = ?', [$adminFields['SEED_ADMIN_PHONE']]);
+    $adminPhone = (new OtpService())->normalize($adminFields['SEED_ADMIN_PHONE']);
+    $emailOwner = Db::value('SELECT phone FROM users WHERE email = ?', [$adminFields['SEED_ADMIN_EMAIL']]);
+    $phoneOwner = Db::value('SELECT 1 FROM users WHERE phone = ?', [$adminPhone]);
 
     if (mb_strlen($adminFields['SEED_ADMIN_PASSWORD']) < 8) {
         $adminNotice = 'Admin not seeded: SEED_ADMIN_PASSWORD must be at least 8 characters.';
-    } elseif ($emailOwner !== null && $emailOwner !== $adminFields['SEED_ADMIN_PHONE']) {
+    } elseif ($emailOwner !== null && $emailOwner !== $adminPhone) {
         $adminNotice = 'Admin not seeded: SEED_ADMIN_EMAIL belongs to a different account.';
     } else {
         seed_user(
             $adminFields['SEED_ADMIN_FIRST_NAME'],
             $adminFields['SEED_ADMIN_LAST_NAME'],
-            $adminFields['SEED_ADMIN_PHONE'],
-            $adminEmail !== '' ? $adminEmail : null,
+            $adminPhone,
+            $adminFields['SEED_ADMIN_EMAIL'],
             $adminFields['SEED_ADMIN_PASSWORD'],
             ['admin']
         );

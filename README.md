@@ -231,7 +231,9 @@ SEED_ADMIN_PASSWORD=
 
 The seeder is idempotent. Re-running it does not reset an existing admin password; it only
 ensures the `admin` role is attached. Leave the values blank and no admin is created.
-`--defaults` forces the same mode outside production.
+`--defaults` forces the same mode outside production. Sign in at `/admin/` with
+`SEED_ADMIN_EMAIL` and the password; afterwards, additional admin/support accounts can be
+created from **Admin → Staff**.
 
 ## Scheduled jobs
 
