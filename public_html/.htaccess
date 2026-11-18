@@ -40,3 +40,7 @@ DirectoryIndex index.php index.html
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
 </IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/vnd.android.package-archive .apk
+</IfModule>
