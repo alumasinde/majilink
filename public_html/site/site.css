@@ -8,6 +8,8 @@
     --text: #0B132B;
     --muted: #4B5B72;
     --bg: #F8F9FA;
+    --btn-hover: #0B132B;
+    --btn-text: #fff;
     --surface: #FFFFFF;
     --line: #E3E8EE;
     --radius: 16px;
@@ -67,8 +69,8 @@ a { color: var(--customer-dark); }
 }
 .btn-primary { background: var(--customer); color: #fff; }
 .btn-primary:hover { background: var(--customer-dark); }
-.btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
-.btn-ghost:hover { background: #fff; }
+.btn-ghost { background: transparent; color: var(--btn-text); border-color: var(--line); }
+.btn-ghost:hover { background: var(--btn-hover); }
 .btn-light { background: #fff; color: var(--vendor); }
 .btn-small { min-height: 40px; padding: 0 16px; font-size: 14px; }
 
