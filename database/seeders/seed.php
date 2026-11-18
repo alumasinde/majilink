@@ -11,7 +11,7 @@ use MajiLink\Support\Hashing;
 
 /**
  * Idempotent seeder. Reference data is always seeded; demo accounts, vendors,
- * pins and orders are local-development only.
+ * pins and orders are local-development only. Change
  *
  * Modes:
  *   php database/seeders/seed.php            defaults + demo (unless APP_ENV=production)
