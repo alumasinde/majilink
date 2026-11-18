@@ -1,5 +1,8 @@
 package ke.co.majilink.ui.customer
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +31,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -51,9 +55,11 @@ import ke.co.majilink.data.api.VendorSummaryDto
 import ke.co.majilink.ui.components.ActionButton
 import ke.co.majilink.ui.components.EmptyState
 import ke.co.majilink.ui.components.ErrorBanner
+import ke.co.majilink.ui.components.ListSkeleton
 import ke.co.majilink.ui.components.OfflineBanner
 import ke.co.majilink.ui.components.PrimaryButton
 import ke.co.majilink.ui.components.SectionCard
+import ke.co.majilink.ui.components.SkeletonBlock
 import ke.co.majilink.ui.components.StatusChip
 import ke.co.majilink.ui.theme.MajiPalette
 
@@ -87,11 +93,25 @@ fun CustomerHomeScreen(
             )
             OfflineBanner(home.offline)
             ErrorBanner(viewModel.message) { viewModel.clearMessage() }
+            AnimatedVisibility(
+                visible = home.loading && home.vendors.isNotEmpty(),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                )
+            }
 
             LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     MeterCard(
                         order = home.activeOrder,
+                        loading = home.loading,
                         onTrack = { home.activeOrder?.let { onTrackOrder(it.id) } }
                     )
                 }
@@ -111,7 +131,10 @@ fun CustomerHomeScreen(
                         )
                     }
                 }
-                if (home.vendors.isEmpty() && !home.loading) {
+                if (home.loading && home.vendors.isEmpty()) {
+                    item { ListSkeleton(rows = 3) }
+                }
+                if (!home.loading && home.vendors.isEmpty()) {
                     item {
                         EmptyState(
                             title = "No vendors nearby",
@@ -275,7 +298,7 @@ private fun RadiusPicker(radiusKm: Double, maxRadiusKm: Double, onPick: (Double)
 }
 
 @Composable
-private fun MeterCard(order: OrderDto?, onTrack: () -> Unit) {
+private fun MeterCard(order: OrderDto?, loading: Boolean, onTrack: () -> Unit) {
     SectionCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -294,18 +317,23 @@ private fun MeterCard(order: OrderDto?, onTrack: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("Maji Meter", fontWeight = FontWeight.Bold)
-                Text(
-                    order?.let { "${it.quantity} jerrycans · ${it.vendor.businessName}" }
-                        ?: "No active order right now",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (loading) {
+                    Spacer(Modifier.height(5.dp))
+                    SkeletonBlock(Modifier.fillMaxWidth(0.75f).height(12.dp))
+                } else {
+                    Text(
+                        order?.let { "${it.quantity} jerrycans · ${it.vendor.businessName}" }
+                            ?: "No active order right now",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            if (order != null) {
+            if (!loading && order != null) {
                 StatusChip(order.status.name)
             }
         }
-        if (order != null) {
+        if (!loading && order != null) {
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.fillMaxWidth(),

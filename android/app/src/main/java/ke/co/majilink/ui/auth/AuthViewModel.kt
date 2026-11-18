@@ -33,13 +33,25 @@ class AuthViewModel(
         state = state.copy(error = null, fieldErrors = emptyMap())
     }
 
+    /** Clears the one-shot signed-in signal after navigation has consumed it. */
+    fun acknowledgeSignedIn() {
+        state = state.copy(signedIn = false, busy = false)
+    }
+
     fun sendCode(destination: String, purpose: String = "register") {
         if (destination.isBlank()) {
             state = state.copy(error = "Enter your email or phone number.")
             return
         }
         viewModelScope.launch {
-            state = state.copy(busy = true, error = null, fieldErrors = emptyMap())
+            state = state.copy(
+                busy = true,
+                error = null,
+                fieldErrors = emptyMap(),
+                codeSent = false,
+                devCode = null,
+                verificationToken = null
+            )
             repo.requestOtp(destination.trim(), purpose).fold(
                 onSuccess = { challenge ->
                     state = state.copy(
@@ -74,6 +86,18 @@ class AuthViewModel(
                 onFailure = { showFailure(it) }
             )
         }
+    }
+
+    fun resetVerification() {
+        state = state.copy(
+            busy = false,
+            codeSent = false,
+            devCode = null,
+            verificationToken = null,
+            identifier = "",
+            error = null,
+            fieldErrors = emptyMap()
+        )
     }
 
     fun register(

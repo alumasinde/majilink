@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.JerrycanStepper
 import ke.co.majilink.ui.components.LabeledField
+import ke.co.majilink.ui.components.LoadingPanel
 import ke.co.majilink.ui.components.MajiMap
 import ke.co.majilink.ui.components.MapMarker
 import ke.co.majilink.ui.components.MapPoint
@@ -141,8 +142,9 @@ fun VendorOrderScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 PrimaryButton(
-                    text = if (viewModel.busy) "Placing…" else "Confirm order",
-                    enabled = !viewModel.busy && location != null,
+                    text = if (viewModel.busy) "Placing order…" else "Confirm order",
+                    enabled = location != null,
+                    loading = viewModel.busy,
                     onClick = {
                         location?.let { pin ->
                             viewModel.placeOrder(vendorId, pin.id, quantity, note, method) { order ->
@@ -185,7 +187,7 @@ fun TrackingScreen(
         ) {
             ErrorBanner(viewModel.message) { viewModel.clearMessage() }
             if (order == null) {
-                Text("Loading your order…")
+                LoadingPanel(if (viewModel.trackingLoading) "Fetching your order…" else "Order not found.")
                 return@Column
             }
 

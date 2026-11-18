@@ -1,8 +1,17 @@
 package ke.co.majilink.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
@@ -74,7 +83,7 @@ fun MajiNav(
         TabItem("account", "Account", Icons.Rounded.Person)
     )
     val vendorTabs = listOf(
-        TabItem("vendorHome", "Orders", Icons.Rounded.Storefront),
+        TabItem("vendorHome", "Orders", Icons.Rounded.Assignment),
         TabItem("vendorWallet", "Wallet", Icons.Rounded.AccountBalanceWallet),
         TabItem("vendorShop", "Shop", Icons.Rounded.Storefront),
         TabItem("vendorAccount", "Account", Icons.Rounded.Person)
@@ -89,7 +98,11 @@ fun MajiNav(
 
     Scaffold(
         bottomBar = {
-            if (showBar) {
+            AnimatedVisibility(
+                visible = showBar,
+                enter = slideInVertically(tween(240)) { it } + fadeIn(tween(180)),
+                exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(140))
+            ) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -122,7 +135,19 @@ fun MajiNav(
         NavHost(
             navController = navController,
             startDestination = start,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(padding),
+            enterTransition = {
+                fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }
+            },
+            exitTransition = {
+                fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it / 20 }
+            },
+            popEnterTransition = {
+                fadeIn(tween(220)) + slideInHorizontally(tween(260)) { -it / 14 }
+            },
+            popExitTransition = {
+                fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { it / 20 }
+            }
         ) {
             composable("welcome") {
                 WelcomeScreen(
@@ -134,19 +159,22 @@ fun MajiNav(
                 LoginScreen(
                     viewModel = authViewModel,
                     onSignedIn = {
+                        authViewModel.acknowledgeSignedIn()
                         val vendor = SessionStore.mode == "vendor" && SessionStore.hasVendorMode
                         onRoleChanged(if (vendor) MajiRole.Vendor else MajiRole.Customer)
                         navController.navigate(if (vendor) "vendorHome" else "home") {
                             popUpTo("welcome") { inclusive = true }
                         }
                     },
-                    onRegister = { navController.navigate("register") }
+                    onRegister = { navController.navigate("register") },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable("pin") {
                 PinLoginScreen(
                     viewModel = authViewModel,
                     onSignedIn = {
+                        authViewModel.acknowledgeSignedIn()
                         onRoleChanged(MajiRole.Customer)
                         navController.navigate("home") { popUpTo("welcome") { inclusive = true } }
                     },
@@ -157,6 +185,7 @@ fun MajiNav(
                 RegisterScreen(
                     viewModel = authViewModel,
                     onSignedIn = {
+                        authViewModel.acknowledgeSignedIn()
                         onRoleChanged(MajiRole.Customer)
                         navController.navigate("home") { popUpTo("welcome") { inclusive = true } }
                     },
@@ -241,6 +270,7 @@ fun MajiNav(
                         }
                     },
                     onLoggedOut = {
+                        authViewModel.acknowledgeSignedIn()
                         onRoleChanged(MajiRole.Customer)
                         navController.navigate("welcome") {
                             popUpTo(navController.graph.startDestinationId) { inclusive = true }
@@ -282,6 +312,7 @@ fun MajiNav(
                         }
                     },
                     onLoggedOut = {
+                        authViewModel.acknowledgeSignedIn()
                         onRoleChanged(MajiRole.Customer)
                         navController.navigate("welcome") {
                             popUpTo(navController.graph.startDestinationId) { inclusive = true }

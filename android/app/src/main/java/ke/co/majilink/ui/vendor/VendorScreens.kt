@@ -52,6 +52,7 @@ import ke.co.majilink.data.SessionStore
 import ke.co.majilink.ui.components.EmptyState
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.LabeledField
+import ke.co.majilink.ui.components.LoadingPanel
 import ke.co.majilink.ui.components.OutlineAction
 import ke.co.majilink.ui.components.PrimaryButton
 import ke.co.majilink.ui.components.SectionCard
@@ -99,6 +100,11 @@ fun VendorHomeScreen(viewModel: VendorViewModel, onOpenOrder: (Long) -> Unit) {
                 .padding(padding)
         ) {
             ErrorBanner(state.message) { viewModel.clearMessage() }
+
+            if (state.loading) {
+                LoadingPanel("Loading your shop…")
+                return@Column
+            }
 
             if (!approved) {
                 Column(Modifier.padding(16.dp)) {
@@ -233,7 +239,7 @@ fun VendorOrderScreen(viewModel: VendorViewModel, orderId: Long, onBack: () -> U
         ) {
             ErrorBanner(viewModel.state.message) { viewModel.clearMessage() }
             if (order == null) {
-                Text("Loading…")
+                LoadingPanel("Fetching order…")
                 return@Column
             }
 
@@ -390,7 +396,8 @@ fun VendorWalletScreen(viewModel: VendorViewModel) {
                 Spacer(Modifier.height(8.dp))
                 PrimaryButton(
                     if (state.busy) "Sending…" else "Request payout",
-                    enabled = !state.busy && amount.isNotBlank(),
+                    enabled = amount.isNotBlank(),
+                    loading = state.busy,
                     onClick = {
                         viewModel.requestPayout(amount)
                         amount = ""
@@ -516,7 +523,7 @@ fun VendorShopScreen(viewModel: VendorViewModel) {
                 Spacer(Modifier.height(12.dp))
                 PrimaryButton(
                     if (state.busy) "Saving…" else "Save changes",
-                    enabled = !state.busy,
+                    loading = state.busy,
                     onClick = { viewModel.updateShop(price, radius, null, null, note.ifBlank { null }) }
                 )
             }

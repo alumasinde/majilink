@@ -47,9 +47,15 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var orders by mutableStateOf<List<OrderDto>>(emptyList())
         private set
+    var ordersLoading by mutableStateOf(false)
+        private set
     var schedules by mutableStateOf<List<RecurringDto>>(emptyList())
         private set
+    var schedulesLoading by mutableStateOf(false)
+        private set
     var tracking by mutableStateOf<OrderDto?>(null)
+        private set
+    var trackingLoading by mutableStateOf(false)
         private set
     var quote by mutableStateOf<QuoteDto?>(null)
         private set
@@ -92,6 +98,7 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun loadVendors(locationId: Long, radiusKm: Double? = null) {
+        home = home.copy(loading = true)
         viewModelScope.launch {
             repo.nearbyVendors(locationId, radiusKm).fold(
                 onSuccess = { payload ->
@@ -136,19 +143,23 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadOrders() {
         viewModelScope.launch {
+            ordersLoading = true
             repo.orders().fold(
                 onSuccess = { orders = it.orders },
                 onFailure = { fail(it) }
             )
+            ordersLoading = false
         }
     }
 
     fun loadOrder(id: Long) {
         viewModelScope.launch {
+            trackingLoading = true
             repo.order(id).fold(
                 onSuccess = { tracking = it },
                 onFailure = { fail(it) }
             )
+            trackingLoading = false
         }
     }
 
@@ -268,10 +279,12 @@ class CustomerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadSchedules() {
         viewModelScope.launch {
+            schedulesLoading = true
             repo.recurringOrders().fold(
                 onSuccess = { schedules = it.schedules },
                 onFailure = { fail(it) }
             )
+            schedulesLoading = false
         }
     }
 

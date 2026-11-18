@@ -75,6 +75,7 @@ import ke.co.majilink.ui.components.ActionButton
 import ke.co.majilink.ui.components.EmptyState
 import ke.co.majilink.ui.components.ErrorBanner
 import ke.co.majilink.ui.components.LabeledField
+import ke.co.majilink.ui.components.ListSkeleton
 import ke.co.majilink.ui.components.MajiMap
 import ke.co.majilink.ui.components.MapMarker
 import ke.co.majilink.ui.components.MapPoint
@@ -133,7 +134,9 @@ fun CustomerOrdersScreen(
                 }
             }
 
-            if (orders.isEmpty()) {
+            if (viewModel.ordersLoading && viewModel.orders.isEmpty()) {
+                ListSkeleton(rows = 4)
+            } else if (orders.isEmpty()) {
                 EmptyState(
                     "No orders yet",
                     "Your water deliveries will appear here.",
@@ -216,7 +219,9 @@ fun ScheduleScreen(viewModel: CustomerViewModel, onBack: () -> Unit) {
                 .padding(vertical = 8.dp)
         ) {
             ErrorBanner(viewModel.message) { viewModel.clearMessage() }
-            if (viewModel.schedules.isEmpty()) {
+            if (viewModel.schedulesLoading && viewModel.schedules.isEmpty()) {
+                ListSkeleton(rows = 3)
+            } else if (viewModel.schedules.isEmpty()) {
                 EmptyState(
                     "No repeat deliveries",
                     "Set a weekly or monthly delivery so you never run dry.",
